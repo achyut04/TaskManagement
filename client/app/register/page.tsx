@@ -17,13 +17,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 export default function Login() {
   const { register } = useAuth();
   const [form, setForm] = useState({
     username: "",
     email: "",
-    password: "",
-    role: " ",
+    password: ""
   });
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -32,7 +41,7 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await register(form.username, form.email, form.password, form.role);
+      await register(form.username, form.email, form.password);
       toast.success("Logged in successfully!");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Login failed");
@@ -60,6 +69,7 @@ export default function Login() {
               <Input
                 id="username"
                 type="text"
+                placeholder="Please enter a username"
                 required
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -82,19 +92,10 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Please Enter a password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Input
-                id="role"
-                type="text"
-                required
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>

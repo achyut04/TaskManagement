@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider } from "@/app/context/AuthContext"; // Check this path matches your folder
 import { Toaster } from "sonner";
+import { Navbar } from "@/components/ui/navbar"; // Check this path matches your folder
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Task Manager",
-  description: "Task Management System",
+  description: "Team Task Management System",
 };
 
 export default function RootLayout({
@@ -15,9 +16,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className="bg-gray-50">
         <AuthProvider>
           <Toaster position="top-center" />
+
+          <Navbar />
+
           {children}
         </AuthProvider>
       </body>

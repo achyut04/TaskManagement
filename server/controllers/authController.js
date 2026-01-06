@@ -7,7 +7,7 @@ const generateToken = (id, role) => {
 };
 
 const register = async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { username, email, password } = req.body;
 
   const user = await User.findOne({ where: { email } });
 
@@ -19,7 +19,7 @@ const register = async (req, res) => {
     username,
     email,
     password: hashedPass,
-    role,
+    role: "User",
   });
 
   if (dbuser) {

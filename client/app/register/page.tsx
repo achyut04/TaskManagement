@@ -1,6 +1,6 @@
 "use client";
 import { useState, FormEvent } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../store/useAuthStore";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -26,9 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import API from "../utils/api";
 
 export default function Login() {
-  const { register } = useAuth();
+  const login = useAuthStore((state) => state.login);
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -41,8 +42,14 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await register(form.username, form.email, form.password);
+      const {data} = await API.post("/auth/register",{
+        username: form.username,
+        email: form.email,
+        password: form.password
+      });
+      await login(data, data.token);
       toast.success("Logged in successfully!");
+      router.push('/dashboard');
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {

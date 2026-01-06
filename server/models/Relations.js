@@ -3,23 +3,23 @@ const User = require("./User");
 const Project = require("./Project");
 const Task = require("./Task");
 
-User.hasMany(Project, { foreignKey: "createdById" });
-Project.belongsTo(User, { as: "creator", foreignKey: "createdById" });
+User.hasMany(Project, { foreignKey: "creator_id" });
+Project.belongsTo(User, { as: "creator", foreignKey: "creator_id" });
 
-Project.belongsToMany(User, { as: "members", through: "ProjectMembers" });
+Project.belongsToMany(User, { as: "members", through: "project_members" });
 User.belongsToMany(Project, {
-  as: "memberProjects",
-  through: "ProjectMembers",
+  as: "member_projects",
+  through: "project_members",
 });
 
-Project.hasMany(Task, { foreignKey: "projectId", onDelete: "CASCADE" });
-Task.belongsTo(Project, { foreignKey: "projectId" });
+Project.hasMany(Task, { foreignKey: "project_id", onDelete: "CASCADE" });
+Task.belongsTo(Project, { foreignKey: "project_id" });
 
-User.hasMany(Task, { foreignKey: "createdById" });
-Task.belongsTo(User, { as: "creator", foreignKey: "createdById" });
+User.hasMany(Task, { foreignKey: "creator_id" });
+Task.belongsTo(User, { as: "creator", foreignKey: "creator_id" });
 
-User.hasMany(Task, { foreignKey: "assignedToId" });
-Task.belongsTo(User, { as: "assignee", foreignKey: "assignedToId" });
+User.hasMany(Task, { foreignKey: "assigned_to_id" });
+Task.belongsTo(User, { as: "assignee", foreignKey: "assigned_to_id" });
 
 const syncDB = async () => {
   try {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/app/context/AuthContext";
+import { useAuthStore } from "@/app/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import {
   NavigationMenu,
@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const {user,logout} = useAuthStore();
   const router = useRouter();
 
   if (!user) return null;

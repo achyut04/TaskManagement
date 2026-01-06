@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/app/context/AuthContext";
+import { useAuthStore } from "../store/useAuthStore";
 import { useRouter } from "next/navigation";
 import API from "@/app/utils/api";
 // import { AddProjectModal } from "@/components/ui/AddProjectModal";
@@ -21,7 +21,7 @@ interface Project {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const user  = useAuthStore((state) => state.user);
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);

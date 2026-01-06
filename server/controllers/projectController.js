@@ -61,7 +61,7 @@ const getProjects = async (req, res) => {
             through: { attributes: [] },
           },
         ],
-        order: [["createdAt", "DESC"]],
+        order: [["created_at", "DESC"]],
       });
     } else {
       projects = await Project.findAll({
@@ -75,7 +75,7 @@ const getProjects = async (req, res) => {
             through: { attributes: [] },
           },
         ],
-        order: [["createdAt", "DESC"]],
+        order: [["created_at", "DESC"]],
       });
     }
 

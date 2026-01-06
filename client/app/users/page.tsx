@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/app/context/AuthContext";
+import { useAuthStore } from "../store/useAuthStore";
 import { useRouter } from "next/navigation";
 import API from "@/app/utils/api";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/pagination";
 
 export default function ManageUsers() {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
 
   const [users, setUsers] = useState<User[]>([]);
@@ -56,8 +56,9 @@ export default function ManageUsers() {
       });
 
       setUsers(sortedUsers);
-    } catch (error) {
-      toast.error("Failed to load user list");
+    } catch (error : any) {
+      toast.error(error.response.data.message);
+      router.push('/dashboard')
     } finally {
       setLoading(false);
     }
@@ -69,12 +70,7 @@ export default function ManageUsers() {
       router.push("/login");
       return;
     }
-    if (user && user.role !== "Admin") {
-      toast.error("Access Denied: Admins Only");
-      router.push("/dashboard");
-    } else if (user?.role === "Admin") {
       fetchUsers();
-    }
   }, [user, router]);
 
   const handlePromote = async (id: string, name: string) => {

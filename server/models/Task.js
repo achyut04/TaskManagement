@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Task = sequelize.define('Task', {
+const Task = sequelize.define('task', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -21,11 +21,12 @@ const Task = sequelize.define('Task', {
     priority: {
         type: DataTypes.ENUM('Low', 'Medium', 'High')
     },
-    dueDate: {
+    due_date: {
         type: DataTypes.DATE,
         allowNull: true
     }
 }, {
+    underscored: true,
     timestamps: true
 });
 

@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Project = sequelize.define('Project', {
+const Project = sequelize.define('project', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -15,6 +15,7 @@ const Project = sequelize.define('Project', {
         type: DataTypes.TEXT
     },
 }, {
+    underscored: true,
     timestamps: true
 });
 

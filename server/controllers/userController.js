@@ -4,7 +4,7 @@ const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
       attributes: { exclude: ["password"] },
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
     res.json(users);
   } catch (error) {

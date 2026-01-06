@@ -1,6 +1,6 @@
 "use client";
 import { useState, FormEvent } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuthStore } from "../store/useAuthStore";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,9 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import API from "../utils/api";
 
 export default function Login() {
-  const { login } = useAuth();
+  const login = useAuthStore((state) => state.login);
   const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -27,8 +28,13 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(form.email, form.password);
+      const { data } = await API.post("/auth/login", {
+        email: form.email,
+        password: form.password,
+      });
+      await login(data, data.token);
       toast.success("Logged in successfully!");
+      router.push('/dashboard');
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {

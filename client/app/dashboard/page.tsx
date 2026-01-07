@@ -80,8 +80,8 @@ export default function Dashboard() {
                 href={`/projects/${project.id}`}
                 className="block h-full"
               >
-                <Card className="group h-full hover:shadow-lg transition-all duration-200 border-gray-200 cursor-pointer flex flex-col">
-                  <CardHeader className="pb-3">
+                <Card className="group h-full hover:shadow-lg transition-all duration-200 border-gray-200 cursor-pointer flex flex-col w-full overflow-hidden">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <div className="flex justify-between items-start gap-2">
                       <CardTitle className="text-lg font-semibold truncate leading-tight group-hover:text-blue-600 transition-colors">
                         {project.name}
@@ -92,7 +92,7 @@ export default function Dashboard() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                    <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed">
+                    <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed break-all">
                       {project.description || "No description provided."}
                     </p>
                   </CardContent>

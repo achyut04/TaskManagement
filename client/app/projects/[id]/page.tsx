@@ -191,7 +191,7 @@ export default function ProjectDetails() {
           <div className="flex gap-2">
             <Button
               onClick={handleCreateTask}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="gap-2 bg-black hover:bg-gray-800 text-white"
             >
               <Plus className="h-4 w-4 mr-2" /> Create Task
             </Button>

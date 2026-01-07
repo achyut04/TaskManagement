@@ -49,11 +49,11 @@ export function AddProjectModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+        <Button className="gap-2 bg-black hover:bg-gray-800 text-white">
           <Plus className="h-4 w-4" /> New Project
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] w-full overflow-hidden">
         <DialogHeader>
           <DialogTitle>Create Project</DialogTitle>
           <DialogDescription>
@@ -61,7 +61,8 @@ export function AddProjectModal() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
             <Label htmlFor="name">Project Name</Label>
             <Input
               id="name"
@@ -71,11 +72,13 @@ export function AddProjectModal() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               placeholder="Brief details about the project..."
+              className="w-full max-w-full break-words whitespace-pre-wrap resize-none"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })

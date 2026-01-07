@@ -3,7 +3,9 @@ const cors = require("cors");
 const { connectDB } = require("./config/db");
 const { syncDB } = require("./models/Relations");
 const authRoutes = require("./routes/authRoutes");
-const userRoutes = require("./routes/userRoutes")
+const userRoutes = require("./routes/userRoutes");
+const projectRoutes = require("./routes/projectRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 const { protect, admin } = require("./middleware/authMiddleware");
 
 require("dotenv").config();
@@ -23,7 +25,9 @@ app.use("/api/auth", authRoutes);
 
 syncDB();
 
-app.use("/api/users",protect, admin, userRoutes);
+app.use("/api/users", protect, admin, userRoutes);
+app.use("/api/project", protect, projectRoutes);
+app.use("/api/tasks", protect, taskRoutes);
 
 app.get("/", (req, res) => {
   res.send("Task Manager API is running...");

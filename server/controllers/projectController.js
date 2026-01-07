@@ -1,4 +1,6 @@
-const { Project, User, Task } = require("../models");
+const Project = require("../models/Project");
+const User = require("../models/User");
+const Task = require("../models/Task");
 
 const createProject = async (req, res) => {
   try {
@@ -7,12 +9,13 @@ const createProject = async (req, res) => {
     const project = await Project.create({
       name,
       description,
-      createdById: req.user.id,
+      creator_id: req.user.id,
     });
 
-    await project.addMember(req.user.id);
-
-    res.status(201).json(project);
+    const projectWithDetails = await Project.findByPk(project.id, {
+      include: [{ model: User, as: "creator", attributes: ["id", "username"] }],
+    });
+    res.status(201).json(projectWithDetails);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -29,9 +32,9 @@ const addProjectMember = async (req, res) => {
       return res.status(404).json({ message: "Project or User not found" });
     }
 
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({ message: "Only Admins can add members" });
-    }
+    // if (req.user.role !== "Admin") {
+    //   return res.status(403).json({ message: "Only Admins can add members" });
+    // }
 
     const isMember = await project.hasMember(user);
     if (isMember) {
@@ -98,7 +101,19 @@ const getProjectById = async (req, res) => {
         },
         {
           model: Task,
-          attributes: ["id", "title", "status", "priority", "assignedToId"],
+          attributes: [
+            "id",
+            "title",
+            "description",
+            "status",
+            "priority",
+            "due_date",
+            "assigned_to_id",
+            "created_at",
+          ],
+          include: [
+            { model: User, as: "assignee", attributes: ["id", "username"] },
+          ],
         },
       ],
     });
@@ -110,10 +125,11 @@ const getProjectById = async (req, res) => {
     const isMember = project.members.some(
       (member) => member.id === req.user.id
     );
-    if (req.user.role !== "Admin" && !isMember) {
-      return res.status(403).json({
-        message: "Access denied. You are not a member of this project.",
-      });
+    const isCreator = project.createdById === req.user.id;
+    const isAdmin = req.user.role === "Admin";
+
+    if (!isMember && !isCreator && !isAdmin) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     res.json(project);
@@ -129,7 +145,7 @@ const updateProject = async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
-    if (req.user.role !== "Admin" && project.createdById !== req.user.id) {
+    if (project.creator_id !== req.user.id) {
       return res
         .status(403)
         .json({ message: "Not authorized to update this project" });
@@ -153,7 +169,7 @@ const deleteProject = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    if (req.user.role !== "Admin" && project.createdById !== req.user.id) {
+    if (req.user.role !== "Admin" && project.creator_id !== req.user.id) {
       return res
         .status(403)
         .json({ message: "Not authorized to delete this project" });
@@ -177,7 +193,7 @@ const removeProjectMember = async (req, res) => {
       return res.status(404).json({ message: "Project or User not found" });
     }
 
-    if (req.user.role !== "Admin" && project.createdById !== req.user.id) {
+    if (req.user.role !== "Admin" && project.creator_id !== req.user.id) {
       return res
         .status(403)
         .json({ message: "Not authorized to remove members" });

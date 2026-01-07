@@ -10,13 +10,43 @@ const {
   removeProjectMember,
 } = require("../controllers/projectController");
 const { protect, admin } = require("../middleware/authMiddleware");
+const {
+  createProjectSchema,
+  updateProjectSchema,
+  addMemberSchema,
+  projectParamsSchema,
+  removeMemberParamsSchema,
+} = require("../validations/projectSchemas");
+const validate = require("../middleware/validate");
 
-router.post("/", admin, createProject);
+router.post("/", admin, validate(createProjectSchema), createProject);
 router.get("/", getProjects);
-router.get("/:id", getProjectById);
-router.put("/:id", updateProject);
-router.delete("/:id", deleteProject);
-router.post("/:id/members", admin, addProjectMember);
-router.delete("/:id/members/:userId", admin, removeProjectMember);
+router.get("/:id", validate(projectParamsSchema, "params"), getProjectById);
+router.put(
+  "/:id",
+  admin,
+  validate(projectParamsSchema, "params"),
+  validate(updateProjectSchema),
+  updateProject
+);
+router.delete(
+  "/:id",
+  admin,
+  validate(projectParamsSchema, "params"),
+  deleteProject
+);
+router.post(
+  "/:id/members",
+  admin,
+  validate(projectParamsSchema, "params"),
+  validate(addMemberSchema),
+  addProjectMember
+);
+router.delete(
+  "/:id/members/:userId",
+  admin,
+  validate(removeMemberParamsSchema, "params"),
+  removeProjectMember
+);
 
 module.exports = router;

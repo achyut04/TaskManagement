@@ -77,7 +77,7 @@ export default function ProjectDetails() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteUserId, setInviteUserId] = useState("");
 
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const {
     currentProject,
     loading,
@@ -105,8 +105,13 @@ export default function ProjectDetails() {
   const [editDesc, setEditDesc] = useState("");
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     fetchProjectById(id).catch(() => router.push("/dashboard"));
-  }, [id, fetchProjectById, router]);
+  }, [id, fetchProjectById, router, user]);
 
   useEffect(() => {
     if (currentProject) {

@@ -71,6 +71,11 @@ export default function TaskDetailsPage() {
   const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     if (!currentProject || currentProject.id !== projectId) {
       fetchProjectById(projectId);
     }

@@ -63,22 +63,22 @@ export function AddProjectModal() {
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-            <Label htmlFor="name">Project Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Website Redesign"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
+              <Label htmlFor="name">Project Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Website Redesign"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               placeholder="Brief details about the project..."
-              className="w-full max-w-full break-words whitespace-pre-wrap resize-none"
+              className="h-[250px] resize-none overflow-y-auto text-base leading-relaxed p-4"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })

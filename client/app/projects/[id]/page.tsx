@@ -6,6 +6,7 @@ import { useProjectStore, Task } from "@/app/store/useProjectStore";
 import { useAuthStore } from "@/app/store/useAuthStore";
 import API from "@/app/utils/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   MoreVertical,
   Trash2,
@@ -16,11 +17,14 @@ import {
   Calendar as CalendarIcon,
   Check,
   ChevronsUpDown,
+  Save,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,13 +85,11 @@ export default function ProjectDetails() {
     deleteTask,
     removeMember,
     addMember,
+    updateProject,
   } = useProjectStore();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | undefined>(undefined);
-
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 10;
@@ -97,9 +99,21 @@ export default function ProjectDetails() {
   >([]);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editDesc, setEditDesc] = useState("");
+
   useEffect(() => {
     fetchProjectById(id).catch(() => router.push("/dashboard"));
   }, [id, fetchProjectById, router]);
+
+  useEffect(() => {
+    if (currentProject) {
+      if (!isEditingName) setEditName(currentProject.name);
+      if (!isEditingDesc) setEditDesc(currentProject.description || "");
+    }
+  }, [currentProject, isEditingName, isEditingDesc]);
 
   useEffect(() => {
     if (isInviteOpen) {
@@ -119,6 +133,30 @@ export default function ProjectDetails() {
       fetchUsers();
     }
   }, [isInviteOpen, currentProject]);
+
+  const canEditProject =
+    user?.role === "Admin" || user?.id === currentProject?.creator?.id;
+
+  const handleUpdateProjectName = async () => {
+    if (!editName.trim()) return;
+    try {
+      await updateProject(id, { name: editName });
+      setIsEditingName(false);
+      toast.success("Project name updated");
+    } catch (error) {
+      toast.error("Failed to update project name");
+    }
+  };
+
+  const handleUpdateProjectDesc = async () => {
+    try {
+      await updateProject(id, { description: editDesc });
+      setIsEditingDesc(false);
+      toast.success("Description updated");
+    } catch (error) {
+      toast.error("Failed to update description");
+    }
+  };
 
   const handleCreateTask = () => {
     setTaskToEdit(undefined);
@@ -164,9 +202,9 @@ export default function ProjectDetails() {
   };
 
   const getStatusColor = (s: string) => {
-    if (s === "Done") return "bg-green-500 hover:bg-green-600";
-    if (s === "In Progress") return "bg-blue-500 hover:bg-blue-600";
-    return "bg-gray-500 hover:bg-gray-600";
+    if (s === "Done") return "bg-green-500 hover:bg-green-600 text-white";
+    if (s === "In Progress") return "bg-blue-500 hover:bg-blue-600 text-white";
+    return "bg-gray-500 hover:bg-gray-600 text-white";
   };
 
   if (loading || !currentProject)
@@ -188,13 +226,75 @@ export default function ProjectDetails() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {currentProject.name}
-            </h1>
-            <p className="text-gray-500 mt-1">{currentProject.description}</p>
+          <div className="flex-1 space-y-2 max-w-2xl">
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-3xl font-bold h-12"
+                  autoFocus
+                />
+                <Button size="icon" onClick={handleUpdateProjectName}>
+                  <Save className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setIsEditingName(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <h1
+                onClick={() => canEditProject && setIsEditingName(true)}
+                className={cn(
+                  "text-3xl font-bold text-gray-900 border border-transparent rounded px-2 -ml-2 py-1 transition-colors",
+                  canEditProject &&
+                    "hover:bg-gray-100 hover:border-gray-200 cursor-pointer"
+                )}
+              >
+                {currentProject.name}
+              </h1>
+            )}
+
+            {isEditingDesc ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="h-[250px] resize-none overflow-y-auto text-base leading-relaxed p-4"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleUpdateProjectDesc}>
+                    Save Description
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingDesc(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p
+                onClick={() => canEditProject && setIsEditingDesc(true)}
+                className={cn(
+                  "text-gray-500 border border-transparent rounded px-2 -ml-2 py-1 transition-colors whitespace-pre-wrap",
+                  canEditProject &&
+                    "hover:bg-gray-100 hover:border-gray-200 cursor-pointer"
+                )}
+              >
+                {currentProject.description || "No description provided."}
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex gap-2 self-start">
             <Button
               onClick={handleCreateTask}
               className="gap-2 bgcolor-black hover:bg-gray-800 text-white"
@@ -242,19 +342,26 @@ export default function ProjectDetails() {
                       className="group cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => handleTaskClick(task)}
                     >
-                      <TableCell>
-                        <div className="font-medium text-gray-900">
+                      <TableCell className="max-w-[200px] sm:max-w-[300px]">
+                        <div
+                          className="font-medium text-gray-900 truncate"
+                          title={task.title}
+                        >
                           {task.title}
                         </div>
-                        {task.description && (
-                          <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                            {task.description}
-                          </div>
-                        )}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`${getStatusColor(task.status)} border-0`}
+                          variant={
+                            task.status === "Overdue"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={`${
+                            task.status !== "Overdue"
+                              ? getStatusColor(task.status)
+                              : ""
+                          } border-0`}
                         >
                           {task.status}
                         </Badge>

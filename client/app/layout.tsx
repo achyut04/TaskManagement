@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
 import { Navbar } from "@/components/ui/navbar";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,

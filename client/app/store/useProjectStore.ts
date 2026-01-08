@@ -33,13 +33,13 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "To Do" | "In Progress" | "Done";
+  status: "To Do" | "In Progress" | "Done" | "Overdue";
   priority: "Low" | "Medium" | "High";
   due_date?: string;
   project_id: string;
   assigned_to_id?: string;
   assignee?: { id: string; username: string };
-  created_at: Timestamp
+  created_at: Timestamp;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -164,9 +164,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           },
         };
       });
-      toast.success("Task updated");
     } catch (error: any) {
-      toast.error("Failed to update task");
+      throw error;
     }
   },
 

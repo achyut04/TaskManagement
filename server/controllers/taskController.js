@@ -1,7 +1,7 @@
 const Task = require("../models/Task");
 const Project = require("../models/Project");
 const User = require("../models/User");
-
+const { canTransition } = require("../utils/workflowRules");
 const createTask = async (req, res) => {
   try {
     const {
@@ -56,6 +56,7 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
+    const { status } = req.body;
     const task = await Task.findByPk(id, {
       include: [
         { model: User, as: "assignee", attributes: ["id", "username"] },
@@ -64,12 +65,21 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
+    if (status && status !== task.status) {
+      const isValid = canTransition(task.status, status);
+      if (!isValid) {
+        return res.status(400).json({
+          message: `Invalid Workflow: Cannot move from '${task.status}' to '${status}'.`,
+        });
+      }
+    }
+
     task.title = req.body.title || task.title;
     task.description = req.body.description || task.description;
     task.status = req.body.status || task.status;
     task.priority = req.body.priority || task.priority;
     task.assigned_to_id = req.body.assigned_to_id || task.assigned_to_id;
-    task.due_date = req.body.due_date || task.due_date;
+    task.due_date = req.body.due_date;
 
     await task.save();
 

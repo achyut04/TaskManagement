@@ -6,6 +6,7 @@ import { useProjectStore, Task } from "@/app/store/useProjectStore";
 import { useAuthStore } from "@/app/store/useAuthStore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Calendar,
@@ -14,16 +15,17 @@ import {
   Trash2,
   Check,
   X,
-  Save,
   Flag,
   CircleDot,
+  AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -79,13 +81,13 @@ export default function TaskDetailsPage() {
       const foundTask = currentProject.tasks.find((t) => t.id === taskId);
       if (foundTask) {
         setTask(foundTask);
-        setEditTitle(foundTask.title);
-        setEditDesc(foundTask.description || "");
+        if (!isEditingTitle) setEditTitle(foundTask.title);
+        if (!isEditingDesc) setEditDesc(foundTask.description || "");
       } else if (!loading) {
         router.push(`/projects/${projectId}`);
       }
     }
-  }, [currentProject, taskId, loading, router]);
+  }, [currentProject, taskId, loading, router, isEditingTitle, isEditingDesc]);
 
   useEffect(() => {
     if (currentProject?.members) {
@@ -101,42 +103,87 @@ export default function TaskDetailsPage() {
 
   const canEdit = !!user;
 
-  const handleSaveTitle = async () => {
-    if (!task || !editTitle.trim()) return;
-    await updateTask(task.id, { title: editTitle });
-    setIsEditingTitle(false);
-  };
-
-  const handleSaveDesc = async () => {
-    if (!task) return;
-    await updateTask(task.id, { description: editDesc });
-    setIsEditingDesc(false);
-  };
-
   const handleUpdateStatus = async (val: string) => {
     if (!task) return;
-    await updateTask(task.id, { status: val });
+
+    try {
+      await updateTask(task.id, { status: val });
+
+      toast.success("Status Updated", {
+        description: `Task moved to ${val}`,
+      });
+    } catch (error: any) {
+      toast.error("Update Failed", {
+        description:
+          error.response?.data?.message || "Invalid status transition.",
+      });
+    }
   };
 
   const handleUpdatePriority = async (val: string) => {
     if (!task) return;
     await updateTask(task.id, { priority: val });
+    toast.success("Priority Updated");
   };
 
-  const handleUpdateDate = async (date: Date | undefined) => {
+  const handleDateSelect = async (selectedDate: Date | undefined) => {
     if (!task) return;
-    await updateTask(task.id, { due_date: date ? date.toISOString() : null });
+    if (!selectedDate) {
+      await updateTask(task.id, { due_date: null });
+      toast.success("Date Cleared");
+      return;
+    }
+
+    const newDate = new Date(selectedDate);
+    if (task.due_date) {
+      const current = new Date(task.due_date);
+      newDate.setHours(current.getHours(), current.getMinutes());
+    } else {
+      newDate.setHours(12, 0);
+    }
+
+    await updateTask(task.id, { due_date: newDate.toISOString() });
+    toast.success("Date Updated");
+  };
+
+  const handleTimeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!task || !task.due_date) return;
+
+    const timeStr = e.target.value;
+    const [hours, minutes] = timeStr.split(":").map(Number);
+
+    const newDate = new Date(task.due_date);
+    newDate.setHours(hours, minutes);
+
+    await updateTask(task.id, { due_date: newDate.toISOString() });
+    toast.success("Time Updated");
   };
 
   const handleUpdateAssignee = async (userId: string | null) => {
     if (!task) return;
     await updateTask(task.id, { assigned_to_id: userId });
     setIsAssigneeOpen(false);
+    toast.success(userId ? "Member Assigned" : "Member Unassigned");
+  };
+
+  const handleSaveTitle = async () => {
+    if (!task || !editTitle.trim()) return;
+    await updateTask(task.id, { title: editTitle });
+    setIsEditingTitle(false);
+    toast.success("Title Saved");
+  };
+
+  const handleSaveDesc = async () => {
+    if (!task) return;
+    await updateTask(task.id, { description: editDesc });
+    setIsEditingDesc(false);
+    toast.success("Description Saved");
   };
 
   const handleDelete = async () => {
     if (confirm("Are you sure? This cannot be undone.")) {
       await deleteTask(taskId);
+      toast.success("Task Deleted");
       router.push(`/projects/${projectId}`);
     }
   };
@@ -147,21 +194,25 @@ export default function TaskDetailsPage() {
     return "text-green-700 bg-green-50 border-green-200";
   };
 
-  const getCreatedDate = () => {
-    if (!task) return null;
-    const dateStr = task.created_at;
-    return dateStr ? new Date(dateStr) : null;
+  const getStatusStyles = (s: string) => {
+    if (s === "Done")
+      return "bg-green-600 text-white border-green-600 hover:bg-green-700";
+    if (s === "In Progress")
+      return "bg-blue-600 text-white border-blue-600 hover:bg-blue-700";
+    if (s === "Overdue")
+      return "bg-red-600 text-white border-red-600 hover:bg-red-700";
+    return "bg-gray-100 text-black-700 border-slate-200 hover:bg-slate-200";
   };
 
   if (loading || !task) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500 animate-pulse">Loading task...</p>
+      <div className="flex min-h-screen items-center justify-center p-8 text-gray-500">
+        Loading...
       </div>
     );
   }
 
-  const createdDate = getCreatedDate();
+  const createdDate = task.created_at || (task as any).createdAt;
 
   return (
     <div className="min-h-screen bg-white">
@@ -169,19 +220,17 @@ export default function TaskDetailsPage() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-gray-500 hover:text-gray-900 gap-2"
           onClick={() => router.back()}
+          className="text-gray-500 hover:text-gray-900 gap-2"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Project
         </Button>
-
         {canEdit && (
           <Button
             variant="ghost"
             size="icon"
             onClick={handleDelete}
-            className="text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            title="Delete Task"
+            className="text-gray-400 hover:text-red-600 hover:bg-red-50"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -197,17 +246,30 @@ export default function TaskDetailsPage() {
                 value={task.status}
                 onValueChange={handleUpdateStatus}
               >
-                <SelectTrigger className="w-auto h-8 gap-2 px-3 rounded-md border text-xs font-semibold uppercase tracking-wide transition-colors">
-                  <CircleDot className="h-3.5 w-3.5" />
+                <SelectTrigger
+                  className={cn(
+                    "w-auto h-8 gap-2 px-3 rounded-md border text-xs font-semibold uppercase tracking-wide transition-colors",
+                    task.status === "Overdue"
+                      ? "bg-destructive text-destructive-foreground border-destructive/50 hover:bg-destructive/90"
+                      : getStatusStyles(task.status)
+                  )}
+                >
+                  {task.status === "Overdue" ? (
+                    <AlertCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    <CircleDot className="h-3.5 w-3.5" />
+                  )}
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Todo">Todo</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Done">Done</SelectItem>
+                  <SelectItem value="Overdue" disabled>
+                    Overdue (System)
+                  </SelectItem>
                 </SelectContent>
               </Select>
-
               <Select
                 disabled={!canEdit}
                 value={task.priority}
@@ -229,6 +291,7 @@ export default function TaskDetailsPage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="group relative">
               {isEditingTitle ? (
                 <div className="space-y-2">
@@ -272,15 +335,15 @@ export default function TaskDetailsPage() {
           </div>
 
           <Separator />
+
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-gray-900">Description</h3>
-
             {isEditingDesc ? (
               <div className="space-y-3">
                 <Textarea
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="min-h-[250px] text-base leading-relaxed p-4"
+                  className="h-[250px] resize-none overflow-y-auto text-base leading-relaxed p-4"
                   autoFocus
                 />
                 <div className="flex gap-2 justify-start">
@@ -306,11 +369,9 @@ export default function TaskDetailsPage() {
                     : "border-transparent"
                 )}
               >
-                {task.description ? (
-                  task.description
-                ) : (
+                {task.description || (
                   <span className="text-gray-400 italic">
-                    Add a description to this task...
+                    Add a description...
                   </span>
                 )}
               </div>
@@ -318,14 +379,12 @@ export default function TaskDetailsPage() {
           </div>
         </div>
 
-        {/* --- RIGHT: SIDEBAR (Properties) --- */}
         <div className="lg:col-span-1 border-l bg-gray-50/50 p-6 space-y-8">
           <div className="space-y-6">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
               Details
             </h4>
 
-            {/* Assignee */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-gray-500">
                 Assignee
@@ -405,9 +464,9 @@ export default function TaskDetailsPage() {
                   >
                     <Calendar className="mr-2 h-4 w-4" />
                     {task.due_date ? (
-                      format(new Date(task.due_date), "PPP")
+                      format(new Date(task.due_date), "PPP p")
                     ) : (
-                      <span>No date set</span>
+                      <span>No due date set</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -417,15 +476,31 @@ export default function TaskDetailsPage() {
                     selected={
                       task.due_date ? new Date(task.due_date) : undefined
                     }
-                    onSelect={handleUpdateDate}
+                    onSelect={handleDateSelect}
                     initialFocus
                   />
+                  <div className="p-3 border-t border-border space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Time
+                    </Label>
+                    <Input
+                      type="time"
+                      value={
+                        task.due_date
+                          ? format(new Date(task.due_date), "HH:mm")
+                          : "12:00"
+                      }
+                      onChange={handleTimeChange}
+                      disabled={!task.due_date}
+                      className="w-full"
+                    />
+                  </div>
                   <div className="p-2 border-t">
                     <Button
                       size="sm"
                       variant="ghost"
                       className="w-full text-red-600 h-8"
-                      onClick={() => handleUpdateDate(undefined)}
+                      onClick={() => handleDateSelect(undefined)}
                     >
                       Clear Date
                     </Button>
@@ -443,7 +518,9 @@ export default function TaskDetailsPage() {
                 <Clock className="h-4 w-4" /> Created
               </span>
               <span>
-                {createdDate ? format(createdDate, "MMM d, yyyy") : "-"}
+                {createdDate
+                  ? format(new Date(createdDate), "MMM d, yyyy")
+                  : "-"}
               </span>
             </div>
           </div>

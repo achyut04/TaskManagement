@@ -7,6 +7,7 @@ const userRoutes = require("./routes/userRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const { protect, admin } = require("./middleware/authMiddleware");
+const startOverdueJob = require("./jobs/checkOverdueTasks");
 
 require("dotenv").config();
 
@@ -22,6 +23,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/api/auth", authRoutes);
+startOverdueJob();
 
 syncDB();
 

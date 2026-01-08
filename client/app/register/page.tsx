@@ -16,16 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import API from "../utils/api";
 
 export default function Login() {
@@ -33,7 +23,7 @@ export default function Login() {
   const [form, setForm] = useState({
     username: "",
     email: "",
-    password: ""
+    password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -42,14 +32,14 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const {data} = await API.post("/auth/register",{
+      const { data } = await API.post("/auth/register", {
         username: form.username,
         email: form.email,
-        password: form.password
+        password: form.password,
       });
       await login(data, data.token);
       toast.success("Logged in successfully!");
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {

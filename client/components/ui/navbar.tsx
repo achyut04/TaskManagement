@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
-  const {user,logout} = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
 
   if (!user) return null;
@@ -54,17 +54,6 @@ export function Navbar() {
 
           <NavigationMenu>
             <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild>
-                  <Link
-                    href="/dashboard"
-                    className={navigationMenuTriggerStyle()}
-                  >
-                    Dashboard
-                  </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-
               {user.role === "Admin" && (
                 <NavigationMenuItem>
                   <NavigationMenuLink asChild>

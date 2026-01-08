@@ -136,6 +136,12 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleRemoveMember = async (id: string, userId: string) => {
+    if (confirm("Remove this member?")) {
+      await removeMember(id, userId);
+    }
+  };
+
   const handleTaskClick = (task: Task) => {
     router.push(`/projects/${id}/tasks/${task.id}`);
   };
@@ -191,7 +197,7 @@ export default function ProjectDetails() {
           <div className="flex gap-2">
             <Button
               onClick={handleCreateTask}
-              className="gap-2 bg-black hover:bg-gray-800 text-white"
+              className="gap-2 bgcolor-black hover:bg-gray-800 text-white"
             >
               <Plus className="h-4 w-4 mr-2" /> Create Task
             </Button>
@@ -444,7 +450,7 @@ export default function ProjectDetails() {
                       {(user?.role === "Admin" ||
                         user?.id === currentProject.creator.id) && (
                         <button
-                          onClick={() => removeMember(id, member.id)}
+                          onClick={() => handleRemoveMember(id, member.id)}
                           className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"
                           title="Remove Member"
                         >

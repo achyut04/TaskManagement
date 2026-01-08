@@ -5,36 +5,46 @@ import { useParams, useRouter } from "next/navigation";
 import { useProjectStore, Task } from "@/app/store/useProjectStore";
 import { useAuthStore } from "@/app/store/useAuthStore";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Calendar,
   User,
   Clock,
-  Tag,
-  CheckCircle2,
-  MoreHorizontal,
-  Edit,
   Trash2,
+  Check,
+  X,
+  Save,
+  Flag,
+  CircleDot,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { TaskDialog } from "@/components/ui/TaskDialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 export default function TaskDetailsPage() {
   const params = useParams();
@@ -42,13 +52,21 @@ export default function TaskDetailsPage() {
   const taskId = params.taskId as string;
   const router = useRouter();
 
-  const { currentProject, fetchProjectById, loading, deleteTask } =
+  const { currentProject, fetchProjectById, loading, updateTask, deleteTask } =
     useProjectStore();
 
   const { user } = useAuthStore();
-
   const [task, setTask] = useState<Task | undefined>(undefined);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+
+  const [availableUsers, setAvailableUsers] = useState<
+    { id: string; username: string }[]
+  >([]);
+  const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
 
   useEffect(() => {
     if (!currentProject || currentProject.id !== projectId) {
@@ -58,203 +76,379 @@ export default function TaskDetailsPage() {
 
   useEffect(() => {
     if (currentProject && currentProject.tasks) {
-      const foundTask = currentProject.tasks?.find((t) => t.id === taskId);
+      const foundTask = currentProject.tasks.find((t) => t.id === taskId);
       if (foundTask) {
         setTask(foundTask);
+        setEditTitle(foundTask.title);
+        setEditDesc(foundTask.description || "");
       } else if (!loading) {
         router.push(`/projects/${projectId}`);
       }
     }
   }, [currentProject, taskId, loading, router]);
 
+  useEffect(() => {
+    if (currentProject?.members) {
+      const users = [...currentProject.members];
+      if (currentProject.creator) {
+        if (!users.find((u) => u.id === currentProject.creator.id)) {
+          users.push(currentProject.creator);
+        }
+      }
+      setAvailableUsers(users);
+    }
+  }, [currentProject]);
+
+  const canEdit = !!user;
+
+  const handleSaveTitle = async () => {
+    if (!task || !editTitle.trim()) return;
+    await updateTask(task.id, { title: editTitle });
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveDesc = async () => {
+    if (!task) return;
+    await updateTask(task.id, { description: editDesc });
+    setIsEditingDesc(false);
+  };
+
+  const handleUpdateStatus = async (val: string) => {
+    if (!task) return;
+    await updateTask(task.id, { status: val });
+  };
+
+  const handleUpdatePriority = async (val: string) => {
+    if (!task) return;
+    await updateTask(task.id, { priority: val });
+  };
+
+  const handleUpdateDate = async (date: Date | undefined) => {
+    if (!task) return;
+    await updateTask(task.id, { due_date: date ? date.toISOString() : null });
+  };
+
+  const handleUpdateAssignee = async (userId: string | null) => {
+    if (!task) return;
+    await updateTask(task.id, { assigned_to_id: userId });
+    setIsAssigneeOpen(false);
+  };
+
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this task?")) {
+    if (confirm("Are you sure? This cannot be undone.")) {
       await deleteTask(taskId);
       router.push(`/projects/${projectId}`);
     }
   };
 
-  const getPriorityColor = (p: string) => {
-    if (p === "High")
-      return "bg-red-100 text-red-800 border-red-200 hover:bg-red-200";
-    if (p === "Medium")
-      return "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200";
-    return "bg-green-100 text-green-800 border-green-200 hover:bg-green-200";
+  const getPriorityStyles = (p: string) => {
+    if (p === "High") return "text-red-700 bg-red-50 border-red-200";
+    if (p === "Medium") return "text-yellow-700 bg-yellow-50 border-yellow-200";
+    return "text-green-700 bg-green-50 border-green-200";
   };
 
-  const getStatusColor = (s: string) => {
-    if (s === "Done") return "bg-green-600 text-white hover:bg-green-700";
-    if (s === "In Progress") return "bg-blue-600 text-white hover:bg-blue-700";
-    return "bg-slate-500 text-white hover:bg-slate-600";
+  const getCreatedDate = () => {
+    if (!task) return null;
+    const dateStr = task.created_at;
+    return dateStr ? new Date(dateStr) : null;
   };
 
   if (loading || !task) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Loading task details...</p>
+        <p className="text-gray-500 animate-pulse">Loading task...</p>
       </div>
     );
   }
 
+  const createdDate = getCreatedDate();
+
   return (
-    <div className="min-h-screen bg-gray-50/50 p-8">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-white">
+      <div className="border-b px-6 py-3 flex items-center justify-between sticky top-0 bg-white z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-gray-500 hover:text-gray-900 gap-2"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Project
+        </Button>
+
+        {canEdit && (
           <Button
             variant="ghost"
-            className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent"
-            onClick={() => router.back()}
+            size="icon"
+            onClick={handleDelete}
+            className="text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            title="Delete Task"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Project
+            <Trash2 className="h-4 w-4" />
           </Button>
+        )}
+      </div>
 
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Actions <MoreHorizontal className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-                  <Edit className="mr-2 h-4 w-4" /> Edit Task
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDelete}
-                  className="text-red-600 focus:text-red-600"
+      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-4 min-h-[calc(100vh-60px)]">
+        <div className="lg:col-span-3 p-6 md:p-10 space-y-8">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Select
+                disabled={!canEdit}
+                value={task.status}
+                onValueChange={handleUpdateStatus}
+              >
+                <SelectTrigger className="w-auto h-8 gap-2 px-3 rounded-md border text-xs font-semibold uppercase tracking-wide transition-colors">
+                  <CircleDot className="h-3.5 w-3.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todo">Todo</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                disabled={!canEdit}
+                value={task.priority}
+                onValueChange={handleUpdatePriority}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "w-auto h-8 gap-2 px-3 rounded-md border text-xs font-semibold uppercase tracking-wide transition-colors",
+                    getPriorityStyles(task.priority)
+                  )}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Task
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <Flag className="h-3.5 w-3.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="group relative">
+              {isEditingTitle ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="text-4xl font-bold min-h-[60px] resize-none overflow-hidden bg-white px-2 py-1 -ml-2"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSaveTitle();
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveTitle}>
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsEditingTitle(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <h1
+                  onClick={() => canEdit && setIsEditingTitle(true)}
+                  className={cn(
+                    "text-4xl font-bold text-gray-900 leading-tight break-words whitespace-pre-wrap border border-transparent rounded px-2 -ml-2 py-1 transition-all",
+                    canEdit && "hover:bg-gray-100 cursor-pointer"
+                  )}
+                >
+                  {task.title}
+                </h1>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900">Description</h3>
+
+            {isEditingDesc ? (
+              <div className="space-y-3">
+                <Textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="min-h-[250px] text-base leading-relaxed p-4"
+                  autoFocus
+                />
+                <div className="flex gap-2 justify-start">
+                  <Button size="sm" onClick={handleSaveDesc}>
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingDesc(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => canEdit && setIsEditingDesc(true)}
+                className={cn(
+                  "prose max-w-none text-gray-700 p-4 rounded-lg border min-h-[150px] whitespace-pre-wrap break-words transition-all",
+                  canEdit
+                    ? "hover:bg-gray-50 hover:border-gray-300 cursor-pointer border-transparent"
+                    : "border-transparent"
+                )}
+              >
+                {task.description ? (
+                  task.description
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Add a description to this task...
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 space-y-6">
-            <Card className="shadow-sm border-gray-200">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Badge className={getStatusColor(task.status)}>
-                        {task.status}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={getPriorityColor(task.priority)}
-                      >
-                        {task.priority} Priority
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-3xl font-bold text-gray-900 leading-tight">
-                      {task.title}
-                    </CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <Separator />
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">
-                      Description
-                    </h3>
-                    <div className="prose prose-sm max-w-none text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-100 whitespace-pre-wrap leading-relaxed">
-                      {task.description || "No description provided."}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
+        {/* --- RIGHT: SIDEBAR (Properties) --- */}
+        <div className="lg:col-span-1 border-l bg-gray-50/50 p-6 space-y-8">
           <div className="space-y-6">
-            <Card className="shadow-sm border-gray-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <User className="h-4 w-4" /> Assigned To
-                  </div>
-                  <div className="flex items-center gap-3 p-2 bg-white border rounded-md">
+            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+              Details
+            </h4>
+
+            {/* Assignee */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500">
+                Assignee
+              </label>
+              <Popover open={isAssigneeOpen} onOpenChange={setIsAssigneeOpen}>
+                <PopoverTrigger asChild disabled={!canEdit}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-2 px-3 bg-white hover:bg-white text-left font-normal border-gray-200"
+                  >
                     {task.assignee ? (
-                      <>
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Avatar className="h-6 w-6 border">
+                          <AvatarFallback className="bg-blue-50 text-blue-600 text-[10px] font-bold">
                             {task.assignee.username.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-900">
-                            {task.assignee.username}
-                          </span>
-                          <span className="text-[10px] text-gray-500">
-                            Member
-                          </span>
-                        </div>
-                      </>
+                        <span className="truncate text-sm">
+                          {task.assignee.username}
+                        </span>
+                      </div>
                     ) : (
-                      <span className="text-sm text-gray-400 italic">
-                        Unassigned
+                      <span className="text-gray-400 flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4" /> Unassigned
                       </span>
                     )}
-                  </div>
-                </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[240px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search member..." />
+                    <CommandList>
+                      <CommandEmpty>No member found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => handleUpdateAssignee(null)}
+                        >
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <X className="h-4 w-4" /> Unassign
+                          </div>
+                        </CommandItem>
+                        {availableUsers.map((u) => (
+                          <CommandItem
+                            key={u.id}
+                            onSelect={() => handleUpdateAssignee(u.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">
+                                {u.username.slice(0, 1).toUpperCase()}
+                              </div>
+                              {u.username}
+                              {task.assignee?.id === u.id && (
+                                <Check className="ml-auto h-4 w-4 opacity-50" />
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Calendar className="h-4 w-4" /> Due Date
-                  </div>
-                  <div className="font-medium text-gray-900">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500">
+                Due Date
+              </label>
+              <Popover>
+                <PopoverTrigger asChild disabled={!canEdit}>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal bg-white hover:bg-white border-gray-200",
+                      !task.due_date && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
                     {task.due_date ? (
-                      <span
-                        className={
-                          new Date(task.due_date) < new Date() &&
-                          task.status !== "Done"
-                            ? "text-red-600"
-                            : ""
-                        }
-                      >
-                        {format(new Date(task.due_date), "PPP")}
-                      </span>
+                      format(new Date(task.due_date), "PPP")
                     ) : (
-                      <span className="text-gray-400">No date set</span>
+                      <span>No date set</span>
                     )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={
+                      task.due_date ? new Date(task.due_date) : undefined
+                    }
+                    onSelect={handleUpdateDate}
+                    initialFocus
+                  />
+                  <div className="p-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full text-red-600 h-8"
+                      onClick={() => handleUpdateDate(undefined)}
+                    >
+                      Clear Date
+                    </Button>
                   </div>
-                </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
 
-                <Separator />
+          <Separator />
 
-                <div className="space-y-4 pt-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Created
-                    </span>
-                    <span className="text-gray-900">
-                      {task.created_at
-                        ? format(new Date(task.created_at), "MMM d, yyyy")
-                        : "-"}
-                    </span>
-                  </div>
-                  
-                </div>
-              </CardContent>
-            </Card>
+          <div className="space-y-4 text-sm text-gray-500">
+            <div className="flex justify-between items-center">
+              <span className="flex items-center gap-2">
+                <Clock className="h-4 w-4" /> Created
+              </span>
+              <span>
+                {createdDate ? format(createdDate, "MMM d, yyyy") : "-"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-
-      <TaskDialog
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        project_id={projectId}
-        taskToEdit={task}
-      />
     </div>
   );
 }

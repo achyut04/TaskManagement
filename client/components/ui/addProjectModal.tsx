@@ -40,7 +40,7 @@ export function AddProjectModal() {
       setOpen(false);
       setForm({ name: "", description: "" });
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to create project");
+      toast.error(error.response?.data?.errors[0] || "Failed to create project");
     } finally {
       setLoading(false);
     }

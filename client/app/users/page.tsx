@@ -56,9 +56,9 @@ export default function ManageUsers() {
       });
 
       setUsers(sortedUsers);
-    } catch (error : any) {
+    } catch (error: any) {
       toast.error(error.response.data.message);
-      router.push('/dashboard')
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
@@ -70,14 +70,19 @@ export default function ManageUsers() {
       router.push("/login");
       return;
     }
-      fetchUsers();
+    fetchUsers();
   }, [user, router]);
-
   const handlePromote = async (id: string, name: string) => {
     try {
-      await API.put(`/users/${id}/promote`);
-      toast.success(`${name} is now an Admin!`);
-      fetchUsers();
+      if (
+        confirm(
+          "Are you sure you want to promote this user? This cannot be undone."
+        )
+      ) {
+        await API.put(`/users/${id}/promote`);
+        toast.success(`${name} is now an Admin!`);
+        fetchUsers();
+      }
     } catch (error) {
       toast.error("Failed to promote user");
     }

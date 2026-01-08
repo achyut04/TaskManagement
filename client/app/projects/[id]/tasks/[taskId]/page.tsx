@@ -18,6 +18,7 @@ import {
   Flag,
   CircleDot,
   AlertCircle,
+  Coins,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { log } from "console";
 
 export default function TaskDetailsPage() {
   const params = useParams();

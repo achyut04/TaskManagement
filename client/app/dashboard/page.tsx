@@ -39,7 +39,7 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Dashboard
+              DashBoard
             </h1>
             <p className="text-gray-500">
               Welcome back,{" "}

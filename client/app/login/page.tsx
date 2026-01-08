@@ -34,9 +34,9 @@ export default function Login() {
       });
       await login(data, data.token);
       toast.success("Logged in successfully!");
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Login failed");
+      toast.error(err.response?.data?.errors[0] || "Login failed");
     } finally {
       setIsLoading(false);
     }

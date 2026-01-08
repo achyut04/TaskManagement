@@ -21,14 +21,6 @@ const startOverdueJob = (io) => {
       if (overdueTasks.length > 0) {
         const ids = overdueTasks.map((t) => t.id);
         await Task.update({ status: "Overdue" }, { where: { id: ids } });
-        // if (io) {
-        //   overdueTasks.forEach((task) => {
-        //     io.to(task.project_id).emit("task_updated", {
-        //       ...task.toJSON(),
-        //       status: "Overdue",
-        //     });
-        //   });
-        // }
       }
     } catch (error) {
         console.error("Error in Overdue job", error);

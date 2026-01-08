@@ -78,11 +78,10 @@ const updateTask = async (req, res) => {
     task.description = req.body.description || task.description;
     task.status = req.body.status || task.status;
     task.priority = req.body.priority || task.priority;
-    task.assigned_to_id = req.body.assigned_to_id || task.assigned_to_id;
+    task.assigned_to_id = req.body.assigned_to_id;
     task.due_date = req.body.due_date;
 
     await task.save();
-
     await task.reload();
 
     const io = req.app.get("io");

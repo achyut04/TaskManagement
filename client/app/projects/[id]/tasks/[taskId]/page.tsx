@@ -52,6 +52,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function TaskDetailsPage() {
   const params = useParams();
@@ -273,7 +274,7 @@ export default function TaskDetailsPage() {
   if (loading || !task) {
     return (
       <div className="flex min-h-screen items-center justify-center p-8 text-gray-500">
-        Loading...
+        <Spinner />
       </div>
     );
   }

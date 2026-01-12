@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
@@ -70,10 +71,8 @@ export default function Dashboard() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <Skeleton className="h-[200px] w-full rounded-xl" />
-            <Skeleton className="h-[200px] w-full rounded-xl" />
-            <Skeleton className="h-[200px] w-full rounded-xl" />
+          <div className="flex min-h-screen items-center justify-center p-8">
+            <Spinner />
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg border border-dashed border-gray-300">

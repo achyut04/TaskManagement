@@ -71,6 +71,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ProjectDetails() {
   const { id } = useParams() as { id: string };
@@ -222,7 +223,11 @@ export default function ProjectDetails() {
   };
 
   if (loading || !currentProject)
-    return <div className="p-8">Loading Project...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <Spinner />
+      </div>
+    );
 
   const tasks = currentProject.tasks || [];
 

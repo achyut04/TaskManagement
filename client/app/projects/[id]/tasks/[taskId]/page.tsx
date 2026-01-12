@@ -90,6 +90,7 @@ export default function TaskDetailsPage() {
   const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isCommentLoading, setIsCommentLoading] = useState(false);
+  const [isFetchingComments, setIsFetchingComments] = useState(false);
 
   const [page, setPage] = useState(1);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -132,38 +133,45 @@ export default function TaskDetailsPage() {
 
   useEffect(() => {
     if (taskId) {
-      resetComments();
-      setPage(1);
-      fetchTaskComments(taskId, 1);
-      fetchTaskLogs(taskId);
+      const init = async () => {
+        resetComments();
+        setPage(1);
+        fetchTaskComments(taskId, 1);
+        fetchTaskLogs(taskId);
+      };
+      init();
     }
   }, [taskId]);
 
+  const loadNextPage = async () => {
+    setIsFetchingComments(true);
+    const nextPage = page + 1;
+    await fetchTaskComments(taskId, nextPage);
+    setPage(nextPage);
+    setIsFetchingComments(false);
+  };
+
   const lastCommentElementRef = useCallback(
     (node: HTMLDivElement) => {
-      // if (loading) return;
+      if (isFetchingComments) return;
       // console.log(observer.current);
       if (observer.current) observer.current.disconnect();
 
       observer.current = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting && hasMoreComments) {
-            setPage((prevPage) => {
-              const nextPage = prevPage + 1;
-              fetchTaskComments(taskId, nextPage);
-              return nextPage;
-            });
+            loadNextPage();
           }
         },
         {
-          threshold: 0.1,
-          rootMargin: "50px",
+          threshold: 1.0,
+          rootMargin: "0px",
         }
       );
 
       if (node) observer.current.observe(node);
     },
-    [hasMoreComments, taskId, fetchTaskComments]
+    [hasMoreComments, taskId, fetchTaskComments, isFetchingComments]
   );
 
   const canEdit = !!user;
@@ -527,7 +535,7 @@ export default function TaskDetailsPage() {
                       </div>
                     ))
                   )}
-                  {hasMoreComments && (
+                  {hasMoreComments && taskComments.length > 0 && (
                     <div
                       ref={lastCommentElementRef}
                       className="h-8 w-full flex justify-center items-center p-4"

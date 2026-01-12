@@ -34,6 +34,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ManageUsers() {
   const user = useAuthStore((state) => state.user);
@@ -101,10 +102,8 @@ export default function ManageUsers() {
 
   if (!user || (loading && users.length === 0)) {
     return (
-      <div className="p-8 max-w-5xl mx-auto space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <Spinner />
       </div>
     );
   }

@@ -18,6 +18,7 @@ import {
   Check,
   ChevronsUpDown,
   Save,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,8 @@ export default function ProjectDetails() {
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 10;
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [availableUsers, setAvailableUsers] = useState<
     { id: string; username: string }[]
   >([]);
@@ -138,6 +141,10 @@ export default function ProjectDetails() {
       fetchUsers();
     }
   }, [isInviteOpen, currentProject]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const canEditProject =
     user?.role === "Admin" || user?.id === currentProject?.creator?.id;
@@ -218,10 +225,15 @@ export default function ProjectDetails() {
     return <div className="p-8">Loading Project...</div>;
 
   const tasks = currentProject.tasks || [];
+
+  const filteredTasks = tasks.filter((task) =>
+    task.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const indexOfLastTask = currentPage * tasksPerPage;
   const indexOfFirstTask = indexOfLastTask - tasksPerPage;
-  const currentTasks = tasks.slice(indexOfFirstTask, indexOfLastTask);
-  const totalPages = Math.ceil(tasks.length / tasksPerPage);
+  const currentTasks = filteredTasks.slice(indexOfFirstTask, indexOfLastTask);
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
 
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= totalPages) {
@@ -314,11 +326,22 @@ export default function ProjectDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-4">
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div className="p-4 border-b bg-gray-50/50 flex justify-between items-center">
-                <h3 className="font-semibold text-gray-700">Tasks</h3>
-                <Badge variant="outline">
-                  {currentProject.tasks?.length || 0} Total
-                </Badge>
+              <div className="p-4 border-b bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <h3 className="font-semibold text-gray-700">Tasks</h3>
+                  <Badge variant="outline">
+                    {filteredTasks.length} / {currentProject.tasks?.length || 0}
+                  </Badge>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 bg-white"
+                  />
+                </div>
               </div>
 
               <Table>
@@ -339,7 +362,9 @@ export default function ProjectDetails() {
                         colSpan={6}
                         className="text-center py-8 text-gray-500"
                       >
-                        No tasks yet. Create one to get started!
+                        {searchQuery
+                          ? "No tasks found matching your search."
+                          : "No tasks yet. Create one to get started!"}
                       </TableCell>
                     </TableRow>
                   )}

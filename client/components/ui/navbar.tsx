@@ -43,8 +43,8 @@ export function Navbar() {
 
   return (
     <div className="border-b bg-white">
-      <div className="flex h-16 items-center px-8 max-w-7xl mx-auto justify-between">
-        <div className="flex items-center gap-6">
+      <div className="flex h-16 items-center px-8 max-w-7xl mx-auto justify-between ">
+        <div className="flex items-center gap-10 ">
           <Link
             href="/dashboard"
             className="text-xl font-bold tracking-tight mr-4"

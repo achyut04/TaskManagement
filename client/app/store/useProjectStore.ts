@@ -32,6 +32,8 @@ interface ProjectState {
   projects: Project[];
   currentProject: Project | null;
   taskComments: Comment[];
+  totalComments: number;
+  hasMoreComments: boolean;
   taskLogs: ActivityLog[];
   loading: boolean;
   fetchProjects: () => Promise<void>;
@@ -44,7 +46,8 @@ interface ProjectState {
   createTask: (taskData: any) => Promise<void>;
   updateTask: (taskId: string, updates: any) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
-  fetchTaskComments: (taskId: string) => Promise<void>;
+  fetchTaskComments: (taskId: string, page?: number) => Promise<void>;
+  resetComments: () => void;
   addTaskComment: (taskId: string, content: string) => Promise<void>;
   fetchTaskLogs: (taskId: string) => Promise<void>;
 }
@@ -66,6 +69,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   currentProject: null,
   taskComments: [],
+  totalComments: 0,
+  hasMoreComments: true,
   taskLogs: [],
   loading: false,
 
@@ -214,20 +219,38 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  fetchTaskComments: async (taskId) => {
+  fetchTaskComments: async (taskId, page = 1) => {
     try {
-      const { data } = await API.get(`/tasks/${taskId}/comments`);
-      set({ taskComments: data });
+      const { data } = await API.get(
+        `/tasks/${taskId}/comments?page=${page}&limit=10`
+      );
+      set((state) => {
+        const newComments =
+          page === 1
+            ? data.comments
+            : [...state.taskComments, ...data.comments];
+
+        // console.log(data);
+        return {
+          taskComments: newComments,
+          totalComments: data.totalComments,
+          hasMoreComments: data.hasMore,
+        };
+      });
     } catch (error) {
       console.error("Failed to fetch comments", error);
     }
+  },
+
+  resetComments() {
+    set({ taskComments: [], totalComments: 0, hasMoreComments: true });
   },
 
   addTaskComment: async (taskId, content) => {
     try {
       const { data } = await API.post(`/tasks/${taskId}/comments`, { content });
       set((state) => ({
-        taskComments: [...state.taskComments, data],
+        taskComments: [data, ...state.taskComments],
       }));
       get().fetchTaskLogs(taskId);
       toast.success("Comment added");

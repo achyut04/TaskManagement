@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/app/store/useAuthStore";
 import { useProjectStore } from "@/app/store/useProjectStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Search } from "lucide-react";
 
 import { AddProjectModal } from "@/components/ui/addProjectModal";
 import {
@@ -16,11 +17,13 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
   const { projects, loading, fetchProjects } = useProjectStore();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -32,6 +35,10 @@ export default function Dashboard() {
   }, [router, fetchProjects]);
 
   if (!user) return null;
+
+  const filteredProjects = projects.filter((project) =>
+    project.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -52,29 +59,43 @@ export default function Dashboard() {
           {user.role === "Admin" && <AddProjectModal />}
         </div>
 
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Search projects..."
+            className="pl-9 bg-white"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
         {loading ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <Skeleton className="h-[200px] w-full rounded-xl" />
             <Skeleton className="h-[200px] w-full rounded-xl" />
             <Skeleton className="h-[200px] w-full rounded-xl" />
           </div>
-        ) : projects.length === 0 ? (
+        ) : filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
             <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               📂
             </div>
             <h3 className="text-lg font-medium text-gray-900">
-              No projects found
+              {searchQuery
+                ? "No projects match your search"
+                : "No projects found"}
             </h3>
             <p className="text-gray-500 text-sm mt-1">
-              {user.role === "Admin"
+              {searchQuery
+                ? "Try searching for a different name or description."
+                : user.role === "Admin"
                 ? "Get started by creating a new project above."
                 : "You haven't been assigned to any projects yet."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}

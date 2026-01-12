@@ -26,13 +26,25 @@ const addComment = async (req, res) => {
 const getTaskComments = async (req, res) => {
   try {
     const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-    const comments = await Comment.findAll({
+    const { count, rows } = await Comment.findAndCountAll({
       where: { task_id: id },
       include: [{ model: User, as: "author", attributes: ["id", "username"] }],
-      order: [["created_at", "ASC"]],
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
     });
-    res.json(comments);
+    res.json({
+      comments: rows,
+      totalComments: count,
+      page,
+      hasMore: offset + rows.length < count,
+    });
+
+    // console.log(count);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

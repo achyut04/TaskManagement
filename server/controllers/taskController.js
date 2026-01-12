@@ -103,7 +103,7 @@ const updateTask = async (req, res) => {
       );
     }
 
-    console.log(updates);
+    // console.log(updates);
 
     if (
       updates.assigned_to_id &&

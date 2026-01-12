@@ -2,6 +2,7 @@ const Task = require("../models/Task");
 const Project = require("../models/Project");
 const User = require("../models/User");
 const { canTransition } = require("../utils/workflowRules");
+const logActivity = require("../utils/logActivity");
 const createTask = async (req, res) => {
   try {
     const {
@@ -56,7 +57,8 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const updates = req.body;
+    const userId = req.user.id;
     const task = await Task.findByPk(id, {
       include: [
         { model: User, as: "assignee", attributes: ["id", "username"] },
@@ -65,13 +67,42 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    if (status && status !== task.status) {
-      const isValid = canTransition(task.status, status);
+    if (updates.status && updates.status !== task.status) {
+      const isValid = canTransition(task.status, updates.status);
       if (!isValid) {
         return res.status(400).json({
-          message: `Invalid Workflow: Cannot move from '${task.status}' to '${status}'.`,
+          message: `Invalid Workflow: Cannot move from '${task.status}' to '${updates.Projectstatus}'.`,
         });
       }
+    }
+
+    if (updates.status && updates.status !== task.status) {
+      await logActivity(
+        task.id,
+        userId,
+        "STATUS_CHANGE",
+        `Changed status from ${task.status} to ${updates.status}`
+      );
+    }
+
+    if (updates.priority && updates.priority !== task.priority) {
+      await logActivity(
+        task.id,
+        userId,
+        "PRIORITY_CHANGE",
+        `Changed priority to ${updates.priority}`
+      );
+    }
+
+    if (
+      updates.assigned_to_id !== undefined &&
+      updates.assigned_to_id !== task.assigned_to_id
+    ) {
+      const actionDetails = updates.assigned_to_id
+        ? "Updated assignee"
+        : "Unassigned the task";
+
+      await logActivity(task.id, userId, "ASSIGNMENT", actionDetails);
     }
 
     task.title = req.body.title || task.title;
@@ -86,7 +117,7 @@ const updateTask = async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.to(task.projectId).emit("task_updated", task);
+      io.to(task.project_id).emit("task_updated", task);
     }
 
     res.json(task);
@@ -121,5 +152,18 @@ const deleteTask = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const getTaskLogs = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const logs = await ActivityLog.findAll({
+      where: { task_id: id },
+      include: [{ model: User, as: "actor", attributes: ["id", "username"] }],
+      order: [["created_at", "DESC"]],
+    });
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-module.exports = { createTask, updateTask, deleteTask };
+module.exports = { createTask, updateTask, deleteTask, getTaskLogs };

@@ -1,6 +1,5 @@
 const Comment = require("../models/Comment");
 const User = require("../models/User");
-const logActivity = require("../utils/logActivity");
 
 const addComment = async (req, res) => {
   try {
@@ -14,12 +13,8 @@ const addComment = async (req, res) => {
       user_id: userId,
     });
 
-    await logActivity(id, userId, "Comment", "Added a comment");
-
     const fullComment = await Comment.findByPk(comment.id, {
-      include: [
-        { model: User, as: "author", attributes: ["id", "username", "avatar"] },
-      ],
+      include: [{ model: User, as: "author", attributes: ["id", "username"] }],
     });
 
     res.status(201).json(fullComment);
@@ -32,7 +27,7 @@ const getTaskComments = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const comments = Comment.findAll({
+    const comments = await Comment.findAll({
       where: { task_id: id },
       include: [{ model: User, as: "author", attributes: ["id", "username"] }],
       order: [["created_at", "ASC"]],
@@ -43,4 +38,4 @@ const getTaskComments = async (req, res) => {
   }
 };
 
-module.exports = {addComment, getTaskComments};
+module.exports = { addComment, getTaskComments };

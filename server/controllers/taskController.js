@@ -1,6 +1,7 @@
 const Task = require("../models/Task");
 const Project = require("../models/Project");
 const User = require("../models/User");
+const ActivityLog = require("../models/ActivityLog");
 const { canTransition } = require("../utils/workflowRules");
 const logActivity = require("../utils/logActivity");
 const createTask = async (req, res) => {
@@ -14,7 +15,6 @@ const createTask = async (req, res) => {
       assigned_to_id,
       due_date,
     } = req.body;
-    console.log(req.body);
     const project = await Project.findByPk(project_id);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
@@ -71,7 +71,7 @@ const updateTask = async (req, res) => {
       const isValid = canTransition(task.status, updates.status);
       if (!isValid) {
         return res.status(400).json({
-          message: `Invalid Workflow: Cannot move from '${task.status}' to '${updates.Projectstatus}'.`,
+          message: `Invalid Workflow: Cannot move from '${task.status}' to '${updates.status}'.`,
         });
       }
     }
@@ -94,15 +94,28 @@ const updateTask = async (req, res) => {
       );
     }
 
+    if (updates.due_date && updates.due_date !== task.due_date) {
+      await logActivity(
+        task.id,
+        userId,
+        "DUEDATE_CHANGE",
+        `Changed due date to ${updates.due_date}`
+      );
+    }
+
+    console.log(updates);
+
     if (
-      updates.assigned_to_id !== undefined &&
+      updates.assigned_to_id &&
       updates.assigned_to_id !== task.assigned_to_id
     ) {
-      const actionDetails = updates.assigned_to_id
-        ? "Updated assignee"
-        : "Unassigned the task";
-
-      await logActivity(task.id, userId, "ASSIGNMENT", actionDetails);
+      const user = await User.findByPk(updates.assigned_to_id);
+      await logActivity(
+        task.id,
+        userId,
+        "ASSIGNEE_CHANGE",
+        `Changed assignee to ${user.username}`
+      );
     }
 
     task.title = req.body.title || task.title;
@@ -162,6 +175,7 @@ const getTaskLogs = async (req, res) => {
     });
     res.json(logs);
   } catch (error) {
+    // console.log(error);
     res.status(500).json({ message: error.message });
   }
 };

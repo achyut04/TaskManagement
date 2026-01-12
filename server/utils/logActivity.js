@@ -12,3 +12,5 @@ const logActivity = async (taskId, userId, action, details) => {
     console.error("Failed to log activity: ", error);
   }
 };
+
+module.exports = logActivity;

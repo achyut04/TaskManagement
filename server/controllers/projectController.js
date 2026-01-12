@@ -81,7 +81,6 @@ const getProjects = async (req, res) => {
         order: [["created_at", "DESC"]],
       });
     }
-
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -131,7 +130,7 @@ const getProjectById = async (req, res) => {
     if (!isMember && !isCreator && !isAdmin) {
       return res.status(403).json({ message: "Access denied." });
     }
-
+    // console.log(project);
     res.json(project);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -207,9 +207,11 @@ export default function ProjectDetails() {
   };
 
   const getStatusColor = (s: string) => {
-    if (s === "Done") return "bg-green-500 hover:bg-green-600 text-white";
-    if (s === "In Progress") return "bg-blue-500 hover:bg-blue-600 text-white";
-    return "bg-gray-500 hover:bg-gray-600 text-white";
+    if (s === "Done") return "bg-green-400 hover:bg-green-500 text-black";
+    if (s === "In Progress") return "bg-blue-400 hover:bg-blue-500 text-black";
+    if (s === "Overdue")
+      return "border-transparent bg-destructive/60 text-black [a&]:hover:bg-destructive/70 focus-visible:ring-destructive/50 dark:focus-visible:ring-destructive/80 dark:bg-destructive/50";
+    return "bg-gray-400 hover:bg-gray-500 text-white";
   };
 
   if (loading || !currentProject)
@@ -357,16 +359,8 @@ export default function ProjectDetails() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            task.status === "Overdue"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                          className={`${
-                            task.status !== "Overdue"
-                              ? getStatusColor(task.status)
-                              : ""
-                          } border-0`}
+                          variant={"default"}
+                          className={getStatusColor(task.status)}
                         >
                           {task.status}
                         </Badge>

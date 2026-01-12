@@ -2,9 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useProjectStore, Task } from "@/app/store/useProjectStore";
+import {
+  useProjectStore,
+  Task,
+  Comment,
+  ActivityLog,
+} from "@/app/store/useProjectStore";
 import { useAuthStore } from "@/app/store/useAuthStore";
-import { format } from "date-fns";
+import API from "@/app/utils/api";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -18,7 +24,10 @@ import {
   Flag,
   CircleDot,
   AlertCircle,
-  Coins,
+  Send,
+  MessageSquare,
+  Activity,
+  History,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,7 +57,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { log } from "console";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Timestamp } from "next/dist/server/lib/cache-handlers/types";
 
 export default function TaskDetailsPage() {
   const params = useParams();
@@ -72,6 +82,11 @@ export default function TaskDetailsPage() {
   >([]);
   const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
 
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isCommentLoading, setIsCommentLoading] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -81,13 +96,14 @@ export default function TaskDetailsPage() {
     if (!currentProject || currentProject.id !== projectId) {
       fetchProjectById(projectId);
     }
-  }, [projectId, currentProject, fetchProjectById]);
+  }, [projectId, currentProject, fetchProjectById, router]);
 
   useEffect(() => {
     if (currentProject && currentProject.tasks) {
       const foundTask = currentProject.tasks.find((t) => t.id === taskId);
       if (foundTask) {
         setTask(foundTask);
+        // console.log(foundTask);
         if (!isEditingTitle) setEditTitle(foundTask.title);
         if (!isEditingDesc) setEditDesc(foundTask.description || "");
       } else if (!loading) {
@@ -108,17 +124,52 @@ export default function TaskDetailsPage() {
     }
   }, [currentProject]);
 
+  const fetchCommentsAndLogs = async () => {
+    try {
+      const [commentsRes, logsRes] = await Promise.all([
+        API.get(`/tasks/${taskId}/comments`),
+        API.get(`/tasks/${taskId}/activity`),
+      ]);
+      // console.log(commentsRes);
+      setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
+      setLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
+    } catch (error) {
+      console.error("Failed to load activity data", error);
+      setComments([]);
+      setLogs([]);
+    }
+  };
+
+  useEffect(() => {
+    if (taskId) {
+      fetchCommentsAndLogs();
+    }
+  }, [taskId]);
+
   const canEdit = !!user;
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    setIsCommentLoading(true);
+    try {
+      await API.post(`/tasks/${taskId}/comments`, { content: newComment });
+      setNewComment("");
+      toast.success("Comment added");
+      fetchCommentsAndLogs();
+    } catch (error) {
+      // console.log(error);
+      toast.error("Failed to post comment");
+    } finally {
+      setIsCommentLoading(false);
+    }
+  };
 
   const handleUpdateStatus = async (val: string) => {
     if (!task) return;
-
     try {
       await updateTask(task.id, { status: val });
-
-      toast.success("Status Updated", {
-        description: `Task moved to ${val}`,
-      });
+      toast.success("Status Updated");
+      fetchCommentsAndLogs();
     } catch (error: any) {
       toast.error("Update Failed", {
         description:
@@ -131,6 +182,7 @@ export default function TaskDetailsPage() {
     if (!task) return;
     await updateTask(task.id, { priority: val });
     toast.success("Priority Updated");
+    fetchCommentsAndLogs();
   };
 
   const handleDateSelect = async (selectedDate: Date | undefined) => {
@@ -138,9 +190,9 @@ export default function TaskDetailsPage() {
     if (!selectedDate) {
       await updateTask(task.id, { due_date: null });
       toast.success("Date Cleared");
+      fetchCommentsAndLogs();
       return;
     }
-
     const newDate = new Date(selectedDate);
     if (task.due_date) {
       const current = new Date(task.due_date);
@@ -148,22 +200,20 @@ export default function TaskDetailsPage() {
     } else {
       newDate.setHours(12, 0);
     }
-
     await updateTask(task.id, { due_date: newDate.toISOString() });
     toast.success("Date Updated");
+    fetchCommentsAndLogs();
   };
 
   const handleTimeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!task || !task.due_date) return;
-
     const timeStr = e.target.value;
     const [hours, minutes] = timeStr.split(":").map(Number);
-
     const newDate = new Date(task.due_date);
     newDate.setHours(hours, minutes);
-
     await updateTask(task.id, { due_date: newDate.toISOString() });
     toast.success("Time Updated");
+    fetchCommentsAndLogs();
   };
 
   const handleUpdateAssignee = async (userId: string | null) => {
@@ -171,6 +221,7 @@ export default function TaskDetailsPage() {
     await updateTask(task.id, { assigned_to_id: userId });
     setIsAssigneeOpen(false);
     toast.success(userId ? "Member Assigned" : "Member Unassigned");
+    fetchCommentsAndLogs();
   };
 
   const handleSaveTitle = async () => {
@@ -178,6 +229,7 @@ export default function TaskDetailsPage() {
     await updateTask(task.id, { title: editTitle });
     setIsEditingTitle(false);
     toast.success("Title Saved");
+    fetchCommentsAndLogs();
   };
 
   const handleSaveDesc = async () => {
@@ -185,6 +237,7 @@ export default function TaskDetailsPage() {
     await updateTask(task.id, { description: editDesc });
     setIsEditingDesc(false);
     toast.success("Description Saved");
+    fetchCommentsAndLogs();
   };
 
   const handleDelete = async () => {
@@ -203,12 +256,12 @@ export default function TaskDetailsPage() {
 
   const getStatusStyles = (s: string) => {
     if (s === "Done")
-      return "bg-green-600 text-white border-green-600 hover:bg-green-700";
+      return "bg-green-400 text-white border-green-400 hover:bg-green-500";
     if (s === "In Progress")
-      return "bg-blue-600 text-white border-blue-600 hover:bg-blue-700";
+      return "bg-blue-400 text-white border-blue-400 hover:bg-blue-500";
     if (s === "Overdue")
-      return "bg-red-600 text-white border-red-600 hover:bg-red-700";
-    return "bg-gray-100 text-black-700 border-slate-200 hover:bg-slate-200";
+      return "bg-red-400 text-white border-red-400 hover:bg-red-500";
+    return "bg-gray-400 text-black-700 border-slate-400 hover:bg-slate-500";
   };
 
   if (loading || !task) {
@@ -219,7 +272,7 @@ export default function TaskDetailsPage() {
     );
   }
 
-  const createdDate = task.created_at || (task as any).createdAt;
+  const createdDate = task.created_at;
 
   return (
     <div className="min-h-screen bg-white">
@@ -257,7 +310,7 @@ export default function TaskDetailsPage() {
                   className={cn(
                     "w-auto h-8 gap-2 px-3 rounded-md border text-xs font-semibold uppercase tracking-wide transition-colors",
                     task.status === "Overdue"
-                      ? "bg-destructive text-destructive-foreground border-destructive/50 hover:bg-destructive/90"
+                      ? "bg-destructive/20 text-destructive-foreground border-destructive/30"
                       : getStatusStyles(task.status)
                   )}
                 >
@@ -277,6 +330,7 @@ export default function TaskDetailsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+
               <Select
                 disabled={!canEdit}
                 value={task.priority}
@@ -384,6 +438,122 @@ export default function TaskDetailsPage() {
               </div>
             )}
           </div>
+
+          <Separator />
+
+          <div className="mt-8">
+            <Tabs defaultValue="comments" className="w-full">
+              <TabsList className="bg-gray-100/50">
+                <TabsTrigger value="comments" className="gap-2">
+                  <MessageSquare className="h-4 w-4" /> Comments (
+                  {comments.length})
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="gap-2">
+                  <History className="h-4 w-4" /> Activity ({logs.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="comments" className="space-y-6 pt-4">
+                <div className="flex gap-4">
+                  <Avatar>
+                    <AvatarFallback className="bg-black text-white">
+                      {user?.username.slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <Textarea
+                      placeholder="Write a comment..."
+                      className="min-h-[80px]"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={handleAddComment}
+                        disabled={!newComment.trim() || isCommentLoading}
+                      >
+                        {isCommentLoading ? (
+                          "Posting..."
+                        ) : (
+                          <>
+                            <Send className="h-3 w-3 mr-2" /> Post Comment
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {comments.length === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-8">
+                      No comments yet.
+                    </p>
+                  ) : (
+                    comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-4 group">
+                        <Avatar className="h-8 w-8 mt-1">
+                          <AvatarFallback className="text-xs bg-gray-200">
+                            {comment.author.username.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">
+                              {comment.author.username}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDistanceToNow(
+                                new Date(comment.createdAt),
+                                {
+                                  addSuffix: true,
+                                }
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg rounded-tl-none border border-gray-100">
+                            {comment.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="activity" className="pt-4">
+                <div className="relative border-l border-gray-200 ml-4 space-y-8">
+                  {logs.map((log) => (
+                    <div key={log.id} className="relative pl-8">
+                      <span className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
+                        <Activity className="h-2 w-2 text-gray-500" />
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-800">
+                          <span className="font-semibold">
+                            {log.actor.username}
+                          </span>{" "}
+                          {log.details.toLowerCase()}.
+                        </p>
+                        <span className="text-xs text-gray-400">
+                          {format(
+                            new Date(log.createdAt),
+                            "MMM d, yyyy 'at' h:mm a"
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {logs.length === 0 && (
+                    <p className="text-gray-400 text-sm pl-8">
+                      No activity recorded yet.
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
 
         <div className="lg:col-span-1 border-l bg-gray-50/50 p-6 space-y-8">
@@ -473,7 +643,7 @@ export default function TaskDetailsPage() {
                     {task.due_date ? (
                       format(new Date(task.due_date), "PPP p")
                     ) : (
-                      <span>No due date set</span>
+                      <span>No date set</span>
                     )}
                   </Button>
                 </PopoverTrigger>

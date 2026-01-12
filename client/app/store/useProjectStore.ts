@@ -2,20 +2,37 @@ import { create } from "zustand";
 import API from "@/app/utils/api";
 import { toast } from "sonner";
 import { Timestamp } from "next/dist/server/lib/cache-handlers/types";
+import { User } from "@/app/types";
 
+export interface Comment {
+  id: string;
+  content: string;
+  createdAt: Timestamp;
+  author: User;
+}
+
+export interface ActivityLog {
+  id: string;
+  action: string;
+  details: string;
+  createdAt: Timestamp;
+  actor: User;
+}
 export interface Project {
   id: string;
   name: string;
   description: string;
-  createdAt: string;
-  creator: { username: string; id: string };
-  members: { id: string; username: string; email: string; role?: string }[];
+  createdAt: Timestamp;
+  creator: User;
+  members: User[];
   tasks?: Task[];
 }
 
 interface ProjectState {
   projects: Project[];
   currentProject: Project | null;
+  taskComments: Comment[];
+  taskLogs: ActivityLog[];
   loading: boolean;
   fetchProjects: () => Promise<void>;
   addProject: (project: Project) => void;
@@ -27,6 +44,9 @@ interface ProjectState {
   createTask: (taskData: any) => Promise<void>;
   updateTask: (taskId: string, updates: any) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  fetchTaskComments: (taskId: string) => Promise<void>;
+  addTaskComment: (taskId: string, content: string) => Promise<void>;
+  fetchTaskLogs: (taskId: string) => Promise<void>;
 }
 
 export interface Task {
@@ -38,14 +58,16 @@ export interface Task {
   due_date?: string;
   project_id: string;
   assigned_to_id?: string;
-  assignee?: { id: string; username: string };
+  assignee?: User;
   created_at: Timestamp;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   currentProject: null,
-  loading: true,
+  taskComments: [],
+  taskLogs: [],
+  loading: false,
 
   fetchProjects: async () => {
     set({ loading: true });
@@ -83,9 +105,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           p.id === id ? { ...p, ...data } : p
         ),
       }));
-      toast.success("Project updated!");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Update failed");
+      throw error;
     }
   },
 
@@ -132,6 +153,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       toast.error(error.response?.data?.message || "Failed to remove member");
     }
   },
+
   createTask: async (taskData) => {
     try {
       const { data } = await API.post("/tasks", taskData);
@@ -153,6 +175,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   updateTask: async (taskId, updates) => {
     try {
       const { data } = await API.put(`/tasks/${taskId}`, updates);
+
       set((state) => {
         if (!state.currentProject) return {};
         return {
@@ -164,6 +187,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           },
         };
       });
+
+      if (get().taskLogs.length > 0) {
+        get().fetchTaskLogs(taskId);
+      }
     } catch (error: any) {
       throw error;
     }
@@ -184,6 +211,38 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       toast.success("Task deleted");
     } catch (error: any) {
       toast.error("Failed to delete task");
+    }
+  },
+
+  fetchTaskComments: async (taskId) => {
+    try {
+      const { data } = await API.get(`/tasks/${taskId}/comments`);
+      set({ taskComments: data });
+    } catch (error) {
+      console.error("Failed to fetch comments", error);
+    }
+  },
+
+  addTaskComment: async (taskId, content) => {
+    try {
+      const { data } = await API.post(`/tasks/${taskId}/comments`, { content });
+      set((state) => ({
+        taskComments: [...state.taskComments, data],
+      }));
+      get().fetchTaskLogs(taskId);
+      toast.success("Comment added");
+    } catch (error: any) {
+      toast.error("Failed to post comment");
+      throw error;
+    }
+  },
+
+  fetchTaskLogs: async (taskId) => {
+    try {
+      const { data } = await API.get(`/tasks/${taskId}/activity`);
+      set({ taskLogs: data });
+    } catch (error) {
+      console.error("Failed to fetch activity logs", error);
     }
   },
 }));

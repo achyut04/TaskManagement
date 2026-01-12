@@ -1,5 +1,9 @@
 const Comment = require("../models/Comment");
 const User = require("../models/User");
+const {
+  sendSuccess,
+  sendInternalError,
+} = require("../utils/responseHelper");
 
 const addComment = async (req, res) => {
   try {
@@ -17,9 +21,15 @@ const addComment = async (req, res) => {
       include: [{ model: User, as: "author", attributes: ["id", "username"] }],
     });
 
-    res.status(201).json(fullComment);
+    return sendSuccess(
+      res,
+      fullComment,
+      "Comment added successfully",
+      null,
+      201
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -37,16 +47,30 @@ const getTaskComments = async (req, res) => {
       limit,
       offset,
     });
-    res.json({
-      comments: rows,
-      totalComments: count,
-      page,
-      hasMore: offset + rows.length < count,
-    });
 
-    // console.log(count);
+    const totalPages = Math.ceil(count / limit);
+    const meta = {
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalItems: count,
+        perPage: limit,
+      },
+    };
+
+    return sendSuccess(
+      res,
+      {
+        comments: rows,
+        totalComments: count,
+        page,
+        hasMore: offset + rows.length < count,
+      },
+      "Comments retrieved successfully",
+      meta
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 

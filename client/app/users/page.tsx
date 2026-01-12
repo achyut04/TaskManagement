@@ -35,6 +35,16 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ManageUsers() {
   const user = useAuthStore((state) => state.user);
@@ -42,23 +52,35 @@ export default function ManageUsers() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const usersPerPage = 10;
+  const [promoteDialogOpen, setPromoteDialogOpen] = useState(false);
+  const [userToPromote, setUserToPromote] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page: number = currentPage) => {
     try {
-      const { data } = await API.get("/users");
+      setLoading(true);
+      const response = (await API.get(
+        `/users?page=${page}&limit=${usersPerPage}`
+      )) as any;
+      const { data, meta } = response;
 
-      const sortedUsers = data.sort((a: User, b: User) => {
-        if (a.role === "Admin" && b.role !== "Admin") return -1;
-        if (a.role !== "Admin" && b.role === "Admin") return 1;
-        return a.username.localeCompare(b.username);
-      });
-
-      setUsers(sortedUsers);
+      setUsers(data);
+      if (meta?.pagination) {
+        setTotalPages(meta.pagination.totalPages);
+        setTotalItems(meta.pagination.totalItems);
+      }
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Failed to fetch users";
+      toast.error(errorMessage);
       router.push("/dashboard");
     } finally {
       setLoading(false);
@@ -71,32 +93,30 @@ export default function ManageUsers() {
       router.push("/login");
       return;
     }
-    fetchUsers();
+    fetchUsers(1);
   }, [user, router]);
-  const handlePromote = async (id: string, name: string) => {
+  const handlePromoteClick = (id: string, name: string) => {
+    setUserToPromote({ id, name });
+    setPromoteDialogOpen(true);
+  };
+
+  const handlePromote = async () => {
+    if (!userToPromote) return;
     try {
-      if (
-        confirm(
-          "Are you sure you want to promote this user? This cannot be undone."
-        )
-      ) {
-        await API.put(`/users/${id}/promote`);
-        toast.success(`${name} is now an Admin!`);
-        fetchUsers();
-      }
+      await API.put(`/users/${userToPromote.id}/promote`);
+      toast.success(`${userToPromote.name} is now an Admin!`);
+      fetchUsers(currentPage);
+      setPromoteDialogOpen(false);
+      setUserToPromote(null);
     } catch (error) {
       toast.error("Failed to promote user");
     }
   };
 
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(users.length / usersPerPage);
-
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
+      fetchUsers(pageNumber);
     }
   };
 
@@ -109,8 +129,8 @@ export default function ManageUsers() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-8">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -121,7 +141,7 @@ export default function ManageUsers() {
                 </CardDescription>
               </div>
               <Badge variant="outline" className="text-sm px-3 py-1">
-                Total Users: {users.length}
+                Total Users: {totalItems}
               </Badge>
             </div>
           </CardHeader>
@@ -137,7 +157,7 @@ export default function ManageUsers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentUsers.map((u) => (
+                  {users.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">
                         {u.username}
@@ -160,7 +180,7 @@ export default function ManageUsers() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handlePromote(u.id, u.username)}
+                            onClick={() => handlePromoteClick(u.id, u.username)}
                           >
                             Promote to Admin
                           </Button>
@@ -218,6 +238,23 @@ export default function ManageUsers() {
           )}
         </Card>
       </div>
+
+      <AlertDialog open={promoteDialogOpen} onOpenChange={setPromoteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to promote this user? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePromote}>
+              Promote
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

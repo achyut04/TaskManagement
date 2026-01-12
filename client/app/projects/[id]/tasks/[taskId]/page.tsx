@@ -22,6 +22,8 @@ import {
   MessageSquare,
   Activity,
   History,
+  Paperclip,
+  Download,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,17 @@ import {
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import API from "@/app/utils/api";
 
 export default function TaskDetailsPage() {
   const params = useParams();
@@ -94,6 +107,9 @@ export default function TaskDetailsPage() {
 
   const [page, setPage] = useState(1);
   const observer = useRef<IntersectionObserver | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [files, setFiles] = useState<any[]>([]);
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -138,10 +154,58 @@ export default function TaskDetailsPage() {
         setPage(1);
         fetchTaskComments(taskId, 1);
         fetchTaskLogs(taskId);
+        fetchFiles();
       };
       init();
     }
   }, [taskId]);
+
+  const fetchFiles = async () => {
+    try {
+      const { data } = await API.get(`/tasks/${taskId}/files`);
+      setFiles(data || []);
+    } catch (error) {
+      console.error("Failed to fetch files", error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      await API.post(`/tasks/${taskId}/files`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      toast.success("File uploaded successfully");
+      fetchFiles();
+      if (fileInput) fileInput.value = "";
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload file");
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      await API.delete(`/tasks/${taskId}/files/${fileId}`);
+      toast.success("File deleted successfully");
+      fetchFiles();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete file");
+    }
+  };
+
+  const handleDownloadFile = (fileId: string, filename: string) => {
+    window.open(
+      `http://localhost:5000/api/tasks/${taskId}/files/${fileId}/download`,
+      "_blank"
+    );
+  };
 
   const loadNextPage = async () => {
     setIsFetchingComments(true);
@@ -154,7 +218,6 @@ export default function TaskDetailsPage() {
   const lastCommentElementRef = useCallback(
     (node: HTMLDivElement) => {
       if (isFetchingComments) return;
-      // console.log(observer.current);
       if (observer.current) observer.current.disconnect();
 
       observer.current = new IntersectionObserver(
@@ -195,9 +258,12 @@ export default function TaskDetailsPage() {
       await updateTask(task.id, { status: val });
       toast.success("Status Updated");
     } catch (error: any) {
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Invalid status transition.";
       toast.error("Update Failed", {
-        description:
-          error.response?.data?.message || "Invalid status transition.",
+        description: errorMessage,
       });
     }
   };
@@ -257,12 +323,14 @@ export default function TaskDetailsPage() {
     toast.success("Description Saved");
   };
 
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
   const handleDelete = async () => {
-    if (confirm("Are you sure? This cannot be undone.")) {
-      await deleteTask(taskId);
-      toast.success("Task Deleted");
-      router.push(`/projects/${projectId}`);
-    }
+    await deleteTask(taskId);
+    toast.success("Task Deleted");
+    router.push(`/projects/${projectId}`);
   };
 
   const getPriorityStyles = (p: string) => {
@@ -290,7 +358,7 @@ export default function TaskDetailsPage() {
   const createdDate = task.created_at;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       <div className="border-b px-6 py-3 flex items-center justify-between sticky top-0 bg-white z-10">
         <Button
           variant="ghost"
@@ -304,7 +372,7 @@ export default function TaskDetailsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             className="text-gray-400 hover:text-red-600 hover:bg-red-50"
           >
             <Trash2 className="h-4 w-4" />
@@ -452,6 +520,78 @@ export default function TaskDetailsPage() {
                 )}
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900">Attachments</h3>
+            <div className="space-y-2">
+              <input
+                type="file"
+                ref={(el) => setFileInput(el)}
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+              />
+              <label htmlFor="file-upload">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  asChild
+                >
+                  <span>
+                    <Paperclip className="h-4 w-4" />
+                    Attach File
+                  </span>
+                </Button>
+              </label>
+              {files.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  {files.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Paperclip className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">
+                          {file.original_filename}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          ({(file.file_size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleDownloadFile(file.id, file.original_filename)
+                          }
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        {canEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteFile(file.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <Separator />
@@ -731,6 +871,27 @@ export default function TaskDetailsPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure? This action cannot be undone. This will permanently
+              delete the task.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -4,6 +4,14 @@ const User = require("../models/User");
 const ActivityLog = require("../models/ActivityLog");
 const { canTransition } = require("../utils/workflowRules");
 const logActivity = require("../utils/logActivity");
+const {
+  sendSuccess,
+  sendNotFound,
+  sendForbidden,
+  sendError,
+  sendInternalError,
+} = require("../utils/responseHelper");
+
 const createTask = async (req, res) => {
   try {
     const {
@@ -17,13 +25,11 @@ const createTask = async (req, res) => {
     } = req.body;
     const project = await Project.findByPk(project_id);
     if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      return sendNotFound(res, "Project");
     }
 
     if (req.user.role !== "Admin") {
-      return res
-        .status(403)
-        .json({ message: "You must be an admin to create tasks" });
+      return sendForbidden(res, "You must be an admin to create tasks");
     }
 
     const task = await Task.create({
@@ -45,12 +51,18 @@ const createTask = async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.to(projectId).emit("task_created", fullTask);
+      io.to(project_id).emit("task_created", fullTask);
     }
 
-    res.status(201).json(fullTask);
+    return sendSuccess(
+      res,
+      fullTask,
+      "Task created successfully",
+      null,
+      201
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -65,14 +77,20 @@ const updateTask = async (req, res) => {
       ],
     });
 
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    if (!task) {
+      return sendNotFound(res, "Task");
+    }
 
     if (updates.status && updates.status !== task.status) {
       const isValid = canTransition(task.status, updates.status);
       if (!isValid) {
-        return res.status(400).json({
-          message: `Invalid Workflow: Cannot move from '${task.status}' to '${updates.status}'.`,
-        });
+        return sendError(
+          res,
+          "INVALID_WORKFLOW",
+          `Invalid Workflow: Cannot move from '${task.status}' to '${updates.status}'.`,
+          null,
+          400
+        );
       }
     }
 
@@ -103,7 +121,6 @@ const updateTask = async (req, res) => {
       );
     }
 
-    // console.log(updates);
 
     if (
       updates.assigned_to_id &&
@@ -133,9 +150,9 @@ const updateTask = async (req, res) => {
       io.to(task.project_id).emit("task_updated", task);
     }
 
-    res.json(task);
+    return sendSuccess(res, task, "Task updated successfully");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -144,12 +161,12 @@ const deleteTask = async (req, res) => {
     const { id } = req.params;
     const task = await Task.findByPk(id);
 
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    if (!task) {
+      return sendNotFound(res, "Task");
+    }
 
     if (req.user.role !== "Admin" && task.createdById !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to delete this task" });
+      return sendForbidden(res, "Not authorized to delete this task");
     }
 
     const projectId = task.projectId;
@@ -160,11 +177,12 @@ const deleteTask = async (req, res) => {
       io.to(projectId).emit("task_deleted", id);
     }
 
-    res.json({ message: "Task deleted" });
+    return sendSuccess(res, null, "Task deleted", null, 204);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
+
 const getTaskLogs = async (req, res) => {
   try {
     const { id } = req.params;
@@ -173,10 +191,9 @@ const getTaskLogs = async (req, res) => {
       include: [{ model: User, as: "actor", attributes: ["id", "username"] }],
       order: [["created_at", "DESC"]],
     });
-    res.json(logs);
+    return sendSuccess(res, logs, "Task logs retrieved successfully");
   } catch (error) {
-    // console.log(error);
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 

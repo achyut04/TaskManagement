@@ -11,6 +11,12 @@ const {
   addComment,
 } = require("../controllers/commentController");
 const {
+  uploadFile,
+  getTaskFiles,
+  deleteFile,
+  downloadFile,
+} = require("../controllers/fileAttachmentController");
+const {
   createTaskSchema,
   updateTaskSchema,
   taskParamsSchema,
@@ -34,5 +40,9 @@ router.post(
   addComment
 );
 router.get("/:id/activity", validate(taskParamsSchema), getTaskLogs);
+router.post("/:id/files", validate(taskParamsSchema), uploadFile);
+router.get("/:id/files", validate(taskParamsSchema), getTaskFiles);
+router.delete("/:id/files/:fileId", validate(taskParamsSchema), deleteFile);
+router.get("/:id/files/:fileId/download", validate(taskParamsSchema), downloadFile);
 
 module.exports = router;

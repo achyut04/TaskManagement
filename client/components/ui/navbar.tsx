@@ -43,11 +43,11 @@ export function Navbar() {
 
   return (
     <div className="border-b bg-white">
-      <div className="flex h-16 items-center px-8 max-w-7xl mx-auto justify-between ">
-        <div className="flex items-center gap-10 ">
+      <div className="flex h-16 items-center px-6 md:px-8 max-w-7xl mx-auto justify-between">
+        <div className="flex items-center gap-8 md:gap-10">
           <Link
             href="/dashboard"
-            className="text-xl font-bold tracking-tight mr-4"
+            className="text-xl font-bold tracking-tight text-gray-900"
           >
             TaskManager
           </Link>

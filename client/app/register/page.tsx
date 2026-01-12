@@ -41,7 +41,8 @@ export default function Login() {
       toast.success("Logged in successfully!");
       router.push("/dashboard");
     } catch (err: any) {
-      toast.error(err.response?.data?.errors[0] || "Login failed");
+      const errorMessage = err.message || err.response?.data?.error?.message || "Registration failed";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

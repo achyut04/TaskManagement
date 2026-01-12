@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { sendValidationError, sendInternalError } = require("../utils/responseHelper");
 
 const validate = (schema) => (req, res, next) => {
   try {
@@ -12,13 +13,10 @@ const validate = (schema) => (req, res, next) => {
         return `${err.path.join(".")}: ${err.message}`;
       });
 
-      return res.status(400).json({
-        message: "Validation Error",
-        errors: errorMessages,
-      });
+      return sendValidationError(res, errorMessages);
     }
 
-    return res.status(500).json({ message: "Internal Server Error" });
+    return sendInternalError(res, "Internal Server Error");
   }
 };
 

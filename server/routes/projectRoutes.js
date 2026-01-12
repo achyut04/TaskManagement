@@ -8,6 +8,7 @@ const {
   updateProject,
   deleteProject,
   removeProjectMember,
+  getProjectTasks,
 } = require("../controllers/projectController");
 const { protect, admin } = require("../middleware/authMiddleware");
 const {
@@ -48,5 +49,6 @@ router.delete(
   validate(removeMemberParamsSchema, "params"),
   removeProjectMember
 );
+router.get("/:id/tasks", validate(projectParamsSchema, "params"), getProjectTasks);
 
 module.exports = router;

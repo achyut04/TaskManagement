@@ -3,7 +3,8 @@ const User = require("./User");
 const Project = require("./Project");
 const Task = require("./Task");
 const Comment = require("./Comment");
-const ActivityLog = require("./ActivityLog" );
+const ActivityLog = require("./ActivityLog");
+const FileAttachment = require("./FileAttachment");
 
 User.hasMany(Project, { foreignKey: "creator_id" });
 Project.belongsTo(User, { as: "creator", foreignKey: "creator_id" });
@@ -34,6 +35,12 @@ ActivityLog.belongsTo(Task, { foreignKey: "task_id" });
 
 User.hasMany(ActivityLog, { foreignKey: "user_id" });
 ActivityLog.belongsTo(User, { foreignKey: "user_id", as: "actor" });
+
+Task.hasMany(FileAttachment, { foreignKey: "task_id", onDelete: "CASCADE" });
+FileAttachment.belongsTo(Task, { foreignKey: "task_id" });
+
+User.hasMany(FileAttachment, { foreignKey: "user_id" });
+FileAttachment.belongsTo(User, { foreignKey: "user_id", as: "uploader" });
 
 const syncDB = async () => {
   try {

@@ -36,7 +36,7 @@ interface ProjectState {
   hasMoreComments: boolean;
   taskLogs: ActivityLog[];
   loading: boolean;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (search?: string) => Promise<void>;
   addProject: (project: Project) => void;
   fetchProjectById: (id: string) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -74,10 +74,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   taskLogs: [],
   loading: false,
 
-  fetchProjects: async () => {
+  fetchProjects: async (search?: string) => {
     set({ loading: true });
     try {
-      const { data } = await API.get("/project");
+      const queryParams = search ? `?search=${encodeURIComponent(search)}` : "";
+      const { data } = await API.get(`/project${queryParams}`);
       set({ projects: data, loading: false });
     } catch (error) {
       set({ loading: false });
@@ -124,7 +125,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }));
       toast.success("Project deleted");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Delete failed");
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Delete failed";
+      toast.error(errorMessage);
       throw error;
     }
   },
@@ -135,7 +140,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       toast.success("Member added!");
       get().fetchProjectById(projectId);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to add member");
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Failed to add member";
+      toast.error(errorMessage);
     }
   },
 
@@ -155,7 +164,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       });
       toast.success("Member removed");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to remove member");
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Failed to remove member";
+      toast.error(errorMessage);
     }
   },
 
@@ -173,7 +186,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       });
       toast.success("Task created!");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to create task");
+      const errorMessage =
+        error.message ||
+        error.response?.data?.error?.message ||
+        "Failed to create task";
+      toast.error(errorMessage);
     }
   },
 
@@ -230,7 +247,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             ? data.comments
             : [...state.taskComments, ...data.comments];
 
-        // console.log(data);
         return {
           taskComments: newComments,
           totalComments: data.totalComments,

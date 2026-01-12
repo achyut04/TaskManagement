@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const {
+  sendSuccess,
+  sendError,
+  sendInternalError,
+} = require("../utils/responseHelper");
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: "30d" });
@@ -12,7 +17,15 @@ const register = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
 
-    if (user) res.status(400).json({ message: "User Already Registered" });
+    if (user) {
+      return sendError(
+        res,
+        "USER_ALREADY_EXISTS",
+        "User already registered",
+        null,
+        400
+      );
+    }
 
     const hashedPass = await bcrypt.hash(password, 10);
 
@@ -24,18 +37,25 @@ const register = async (req, res) => {
     });
 
     if (dbuser) {
-      res.status(201).json({
+      const userData = {
         id: dbuser.id,
         username: dbuser.username,
         email: dbuser.email,
         role: dbuser.role,
         token: generateToken(dbuser.id, dbuser.role),
-      });
+      };
+      return sendSuccess(
+        res,
+        userData,
+        "User registered successfully",
+        null,
+        201
+      );
     } else {
-      res.status(400).json({ messsage: "Invalid Data" });
+      return sendError(res, "INVALID_DATA", "Invalid user data", null, 400);
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -43,21 +63,34 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
+    console.log(user);
 
-    if (!user) res.status(401).json({ message: "No such User exists." });
-    else if (!(await bcrypt.compare(password, user.password)))
-      res.status(401).json({ message: "Incorrect Password" });
-    else {
-      res.json({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        username: user.username,
-        token: generateToken(user.id, user.role),
-      });
+    if (!user) {
+      return sendError(res, "USER_NOT_FOUND", "No such user exists", null, 401);
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return sendError(
+        res,
+        "INVALID_CREDENTIALS",
+        "Incorrect password",
+        null,
+        401
+      );
+    }
+
+    const userData = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      username: user.username,
+      token: generateToken(user.id, user.role),
+    };
+
+    return sendSuccess(res, userData, "Login successful");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 

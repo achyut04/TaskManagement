@@ -1,6 +1,14 @@
+const { Op } = require("sequelize");
 const Project = require("../models/Project");
 const User = require("../models/User");
 const Task = require("../models/Task");
+const {
+  sendSuccess,
+  sendNotFound,
+  sendForbidden,
+  sendError,
+  sendInternalError,
+} = require("../utils/responseHelper");
 
 const createProject = async (req, res) => {
   try {
@@ -15,9 +23,15 @@ const createProject = async (req, res) => {
     const projectWithDetails = await Project.findByPk(project.id, {
       include: [{ model: User, as: "creator", attributes: ["id", "username"] }],
     });
-    res.status(201).json(projectWithDetails);
+    return sendSuccess(
+      res,
+      projectWithDetails,
+      "Project created successfully",
+      null,
+      201
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 const addProjectMember = async (req, res) => {
@@ -28,33 +42,54 @@ const addProjectMember = async (req, res) => {
     const project = await Project.findByPk(projectId);
     const user = await User.findByPk(userId);
 
-    if (!project || !user) {
-      return res.status(404).json({ message: "Project or User not found" });
+    if (!project) {
+      return sendNotFound(res, "Project");
     }
-
-    // if (req.user.role !== "Admin") {
-    //   return res.status(403).json({ message: "Only Admins can add members" });
-    // }
+    if (!user) {
+      return sendNotFound(res, "User");
+    }
 
     const isMember = await project.hasMember(user);
     if (isMember) {
-      return res
-        .status(400)
-        .json({ message: "User is already a member of this project" });
+      return sendError(
+        res,
+        "USER_ALREADY_MEMBER",
+        "User is already a member of this project",
+        null,
+        400
+      );
     }
 
     await project.addMember(user);
-    res.status(200).json({ message: "User added to project successfully" });
+    return sendSuccess(
+      res,
+      null,
+      "User added to project successfully",
+      null,
+      200
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
+
 const getProjects = async (req, res) => {
   try {
+    const search = req.query.search || "";
+
+    const whereClause = {};
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
     let projects;
 
     if (req.user.role === "Admin") {
       projects = await Project.findAll({
+        where: whereClause,
         include: [
           { model: User, as: "creator", attributes: ["id", "username"] },
           {
@@ -68,6 +103,7 @@ const getProjects = async (req, res) => {
       });
     } else {
       projects = await Project.findAll({
+        where: whereClause,
         include: [
           { model: User, as: "creator", attributes: ["id", "username"] },
           {
@@ -81,9 +117,9 @@ const getProjects = async (req, res) => {
         order: [["created_at", "DESC"]],
       });
     }
-    res.json(projects);
+    return sendSuccess(res, projects, "Projects retrieved successfully");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -118,7 +154,7 @@ const getProjectById = async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      return sendNotFound(res, "Project");
     }
 
     const isMember = project.members.some(
@@ -128,12 +164,11 @@ const getProjectById = async (req, res) => {
     const isAdmin = req.user.role === "Admin";
 
     if (!isMember && !isCreator && !isAdmin) {
-      return res.status(403).json({ message: "Access denied." });
+      return sendForbidden(res, "Access denied");
     }
-    // console.log(project);
-    res.json(project);
+    return sendSuccess(res, project, "Project retrieved successfully");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -142,21 +177,19 @@ const updateProject = async (req, res) => {
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      return sendNotFound(res, "Project");
     }
     if (project.creator_id !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to update this project" });
+      return sendForbidden(res, "Not authorized to update this project");
     }
 
     project.name = req.body.name || project.name;
     project.description = req.body.description || project.description;
 
     await project.save();
-    res.json(project);
+    return sendSuccess(res, project, "Project updated successfully");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -165,19 +198,17 @@ const deleteProject = async (req, res) => {
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
-      return res.status(404).json({ message: "Project not found" });
+      return sendNotFound(res, "Project");
     }
 
     if (req.user.role !== "Admin" && project.creator_id !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to delete this project" });
+      return sendForbidden(res, "Not authorized to delete this project");
     }
 
     await project.destroy();
-    res.json({ message: "Project removed" });
+    return sendSuccess(res, null, "Project removed", null, 204);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
 
@@ -188,22 +219,91 @@ const removeProjectMember = async (req, res) => {
     const project = await Project.findByPk(id);
     const userToRemove = await User.findByPk(userId);
 
-    if (!project || !userToRemove) {
-      return res.status(404).json({ message: "Project or User not found" });
+    if (!project) {
+      return sendNotFound(res, "Project");
+    }
+    if (!userToRemove) {
+      return sendNotFound(res, "User");
     }
 
     if (req.user.role !== "Admin" && project.creator_id !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to remove members" });
+      return sendForbidden(res, "Not authorized to remove members");
     }
 
     await project.removeMember(userToRemove);
-    res.json({ message: "Member removed successfully" });
+    return sendSuccess(res, null, "Member removed successfully", null, 200);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendInternalError(res, error.message);
   }
 };
+
+const getProjectTasks = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
+    const offset = (page - 1) * limit;
+
+    const project = await Project.findByPk(id);
+
+    if (!project) {
+      return sendNotFound(res, "Project");
+    }
+
+    const isMember = await project.hasMember(req.user);
+    const isCreator = project.creator_id === req.user.id;
+    const isAdmin = req.user.role === "Admin";
+
+    if (!isMember && !isCreator && !isAdmin) {
+      return sendForbidden(res, "Access denied");
+    }
+
+    const taskWhereClause = { project_id: id };
+    if (search) {
+      taskWhereClause[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    const { count, rows: tasks } = await Task.findAndCountAll({
+      where: taskWhereClause,
+      attributes: [
+        "id",
+        "title",
+        "description",
+        "status",
+        "priority",
+        "due_date",
+        "assigned_to_id",
+        "created_at",
+      ],
+      include: [
+        { model: User, as: "assignee", attributes: ["id", "username"] },
+      ],
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    const meta = {
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalItems: count,
+        perPage: limit,
+      },
+    };
+
+    return sendSuccess(res, tasks, "Tasks retrieved successfully", meta);
+  } catch (error) {
+    return sendInternalError(res, error.message);
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
@@ -212,4 +312,5 @@ module.exports = {
   updateProject,
   deleteProject,
   removeProjectMember,
+  getProjectTasks,
 };

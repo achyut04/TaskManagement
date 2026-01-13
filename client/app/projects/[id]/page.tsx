@@ -20,6 +20,7 @@ import {
   Home,
   User,
   Loader2,
+  Settings,
 } from "lucide-react";
 
 import API from "@/app/utils/api";
@@ -98,6 +99,7 @@ export default function ProjectDetails() {
     loading: projectLoading,
     fetchProjectById,
     deleteTask,
+    deleteProject,
     removeMember,
     addMember,
     updateProject,
@@ -113,6 +115,14 @@ export default function ProjectDetails() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | undefined>(undefined);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+
+  const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  const [deleteMemberDialogOpen, setDeleteMemberDialogOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
+
+  const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -164,9 +174,6 @@ export default function ProjectDetails() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, currentPage, fetchTasks]);
 
-  const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-
   const handleTaskClick = (task: Task) => {
     router.push(`/projects/${id}/tasks/${task.id}`);
   };
@@ -189,26 +196,63 @@ export default function ProjectDetails() {
     fetchTasks(currentPage, searchQuery);
   };
 
+  const handleRemoveMemberClick = (memberId: string) => {
+    setMemberToDelete(memberId);
+    setDeleteMemberDialogOpen(true);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToDelete) return;
+    await removeMember(id, memberToDelete);
+    setDeleteMemberDialogOpen(false);
+    setMemberToDelete(null);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!currentProject) return;
+    try {
+      await deleteProject(currentProject.id);
+      toast.success("Project deleted successfully");
+      router.push("/dashboard");
+    } catch (error) {
+      toast.error("Failed to delete project");
+    }
+  };
+
   if (projectLoading || !currentProject) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center overflow-hidden">
         <Spinner />
       </div>
     );
   }
 
   const isAdminOrOwner =
-    user?.role === "Admin" || user?.id === currentProject.creator.id;
+    user?.role === "Admin" ||
+    (user?.id &&
+      currentProject?.creator?.id &&
+      String(user.id) === String(currentProject.creator.id));
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div>
+    <div className="h-screen overflow-y-auto bg-gray-50 p-6 md:p-8 flex flex-col">
+      <div className="mx-auto max-w-7xl space-y-6 w-full pb-20">
+        <div className="flex items-center justify-between">
           <Link href="/dashboard">
             <Button variant="outline" size="sm" className="gap-2">
               <Home className="h-4 w-4" /> Back to Dashboard
             </Button>
           </Link>
+
+          {isAdminOrOwner && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteProjectDialogOpen(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-gray-200 gap-2"
+            >
+              <Trash2 className="h-4 w-4" /> Delete Project
+            </Button>
+          )}
         </div>
 
         <ProjectHeader
@@ -290,7 +334,7 @@ export default function ProjectDetails() {
               project={currentProject}
               currentUser={user}
               onInvite={() => setIsInviteOpen(true)}
-              onRemoveMember={(memberId: string) => removeMember(id, memberId)}
+              onRemoveMember={handleRemoveMemberClick}
             />
           </div>
         </div>
@@ -340,6 +384,54 @@ export default function ProjectDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={deleteMemberDialogOpen}
+        onOpenChange={setDeleteMemberDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this member from the project?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRemoveMember}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deleteProjectDialogOpen}
+        onOpenChange={setDeleteProjectDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <strong>{currentProject.name}</strong> and all associated tasks
+              and files. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -349,6 +441,11 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
   const [name, setName] = useState(project.name);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [desc, setDesc] = useState(project.description);
+
+  useEffect(() => {
+    setName(project.name);
+    setDesc(project.description);
+  }, [project]);
 
   const handleNameSave = async () => {
     if (!name.trim()) return;
@@ -363,7 +460,7 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div className="flex-1 space-y-2 max-w-2xl">
+      <div className="flex-1 space-y-2 max-w-2xl min-w-0">
         {isEditingName ? (
           <div className="flex items-center gap-2">
             <Input
@@ -387,9 +484,10 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
           <h1
             onClick={() => canEdit && setIsEditingName(true)}
             className={cn(
-              "text-3xl font-bold text-gray-900 px-1 -ml-1 rounded transition-colors",
+              "text-3xl font-bold text-gray-900 px-1 -ml-1 rounded transition-colors truncate",
               canEdit && "hover:bg-gray-200 cursor-pointer"
             )}
+            title={project.name}
           >
             {project.name}
           </h1>
@@ -400,7 +498,7 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
             <Textarea
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              className="min-h-[100px]"
+              className="min-h-[100px] resize-none"
               autoFocus
             />
             <div className="flex gap-2">
@@ -420,7 +518,7 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
           <p
             onClick={() => canEdit && setIsEditingDesc(true)}
             className={cn(
-              "text-gray-500 px-1 -ml-1 rounded transition-colors whitespace-pre-wrap",
+              "text-gray-500 px-1 -ml-1 rounded transition-colors whitespace-pre-wrap break-words",
               canEdit && "hover:bg-gray-100 cursor-pointer"
             )}
           >
@@ -429,9 +527,11 @@ function ProjectHeader({ project, canEdit, onUpdate, onCreateTask }: any) {
         )}
       </div>
 
-      <Button onClick={onCreateTask} className="gap-2">
-        <Plus className="h-4 w-4" /> Create Task
-      </Button>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button onClick={onCreateTask} className="gap-2">
+          <Plus className="h-4 w-4" /> Create Task
+        </Button>
+      </div>
     </div>
   );
 }
@@ -486,7 +586,14 @@ function TasksTable({
             className="group hover:bg-gray-50 cursor-pointer"
             onClick={() => onTaskClick(task)}
           >
-            <TableCell className="font-medium">{task.title}</TableCell>
+            <TableCell>
+              <div
+                className="font-medium truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px]"
+                title={task.title}
+              >
+                {task.title}
+              </div>
+            </TableCell>
             <TableCell>
               <StatusBadge status={task.status} />
             </TableCell>
@@ -511,7 +618,10 @@ function TasksTable({
                       {task.assignee.username.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm text-gray-600">
+                  <span
+                    className="text-sm text-gray-600 truncate max-w-[100px]"
+                    title={task.assignee.username}
+                  >
                     {task.assignee.username}
                   </span>
                 </div>
@@ -559,7 +669,10 @@ function TasksTable({
 
 function TeamSidebar({ project, currentUser, onInvite, onRemoveMember }: any) {
   const canManage =
-    currentUser?.role === "Admin" || currentUser?.id === project.creator.id;
+    currentUser?.role === "Admin" ||
+    (currentUser?.id &&
+      project?.creator?.id &&
+      String(currentUser.id) === String(project.creator.id));
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border">

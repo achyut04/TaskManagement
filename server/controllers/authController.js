@@ -63,7 +63,6 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email } });
-    console.log(user);
 
     if (!user) {
       return sendError(res, "USER_NOT_FOUND", "No such user exists", null, 401);

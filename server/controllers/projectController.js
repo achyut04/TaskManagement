@@ -134,22 +134,6 @@ const getProjectById = async (req, res) => {
           attributes: ["id", "username", "email"],
           through: { attributes: [] },
         },
-        {
-          model: Task,
-          attributes: [
-            "id",
-            "title",
-            "description",
-            "status",
-            "priority",
-            "due_date",
-            "assigned_to_id",
-            "created_at",
-          ],
-          include: [
-            { model: User, as: "assignee", attributes: ["id", "username"] },
-          ],
-        },
       ],
     });
 
@@ -179,12 +163,13 @@ const updateProject = async (req, res) => {
     if (!project) {
       return sendNotFound(res, "Project");
     }
-    if (project.creator_id !== req.user.id) {
+    if (project.creator_id !== req.user.id && req.user.role !== "Admin") {
+      // console.log(req.user.role);
       return sendForbidden(res, "Not authorized to update this project");
     }
 
     project.name = req.body.name || project.name;
-    project.description = req.body.description || project.description;
+    project.description = req.body.description;
 
     await project.save();
     return sendSuccess(res, project, "Project updated successfully");

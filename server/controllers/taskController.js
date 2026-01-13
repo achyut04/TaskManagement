@@ -11,7 +11,35 @@ const {
   sendError,
   sendInternalError,
 } = require("../utils/responseHelper");
+const { format } = require("date-fns");
 
+const getTaskById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await Task.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "assignee",
+          attributes: ["id", "username", "email"],
+        },
+        {
+          model: Project,
+          attributes: ["id", "name"],
+        },
+      ],
+    });
+
+    if (!task) {
+      return sendNotFound(res, "Task");
+    }
+
+    return sendSuccess(res, task, "Task retrieved successfully");
+  } catch (error) {
+    return sendInternalError(res, error.message);
+  }
+};
 const createTask = async (req, res) => {
   try {
     const {
@@ -54,13 +82,7 @@ const createTask = async (req, res) => {
       io.to(project_id).emit("task_created", fullTask);
     }
 
-    return sendSuccess(
-      res,
-      fullTask,
-      "Task created successfully",
-      null,
-      201
-    );
+    return sendSuccess(res, fullTask, "Task created successfully", null, 201);
   } catch (error) {
     return sendInternalError(res, error.message);
   }
@@ -113,14 +135,27 @@ const updateTask = async (req, res) => {
     }
 
     if (updates.due_date && updates.due_date !== task.due_date) {
+      const readableDate = format(new Date(updates.due_date), "MMM d, yyyy");
       await logActivity(
         task.id,
         userId,
         "DUEDATE_CHANGE",
-        `Changed due date to ${updates.due_date}`
+        `Changed due date to ${readableDate}`
       );
     }
-
+    if ("due_date" in updates) {
+      if (updates.due_date === null && task.due_date !== null) {
+        await logActivity(
+          task.id,
+          userId,
+          "DUEDATE_CHANGE",
+          "Removed due date"
+        );
+      }
+    }
+    // if (!updates.due_date && task.due_date !== null) {
+    //   await logActivity(task.id, userId, "DUEDATE_CHANGE", "Removed due date");
+    // }
 
     if (
       updates.assigned_to_id &&
@@ -136,7 +171,7 @@ const updateTask = async (req, res) => {
     }
 
     task.title = req.body.title || task.title;
-    task.description = req.body.description || task.description;
+    task.description = req.body.description;
     task.status = req.body.status || task.status;
     task.priority = req.body.priority || task.priority;
     task.assigned_to_id = req.body.assigned_to_id;
@@ -197,4 +232,10 @@ const getTaskLogs = async (req, res) => {
   }
 };
 
-module.exports = { createTask, updateTask, deleteTask, getTaskLogs };
+module.exports = {
+  createTask,
+  updateTask,
+  deleteTask,
+  getTaskLogs,
+  getTaskById,
+};

@@ -176,7 +176,7 @@ const downloadFile = async (req, res) => {
       return sendNotFound(res, "File");
     }
 
-    if (!fs.existsSync(fileAttachment.file_path)) {
+    if (!fs.existsSync(fileAttachment.file_path)) { 
       return sendNotFound(res, "File");
     }
 

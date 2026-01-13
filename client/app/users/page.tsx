@@ -25,7 +25,6 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
   PaginationContent,
@@ -95,6 +94,7 @@ export default function ManageUsers() {
     }
     fetchUsers(1);
   }, [user, router]);
+
   const handlePromoteClick = (id: string, name: string) => {
     setUserToPromote({ id, name });
     setPromoteDialogOpen(true);
@@ -157,37 +157,51 @@ export default function ManageUsers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">
-                        {u.username}
-                      </TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={u.role === "Admin" ? "default" : "secondary"}
-                          className={
-                            u.role === "Admin"
-                              ? "bg-purple-600 hover:bg-purple-700"
-                              : ""
-                          }
-                        >
-                          {u.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {u.role !== "Admin" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePromoteClick(u.id, u.username)}
-                          >
-                            Promote to Admin
-                          </Button>
-                        )}
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                          <Spinner />
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    users.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">
+                          {u.username}
+                        </TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              u.role === "Admin" ? "default" : "secondary"
+                            }
+                            className={
+                              u.role === "Admin"
+                                ? "bg-purple-600 hover:bg-purple-700"
+                                : ""
+                            }
+                          >
+                            {u.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {u.role !== "Admin" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handlePromoteClick(u.id, u.username)
+                              }
+                            >
+                              Promote to Admin
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -199,9 +213,9 @@ export default function ManageUsers() {
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
-                      onClick={() => paginate(currentPage - 1)}
+                      onClick={() => !loading && paginate(currentPage - 1)}
                       className={
-                        currentPage === 1
+                        currentPage === 1 || loading
                           ? "pointer-events-none opacity-50"
                           : "cursor-pointer"
                       }
@@ -212,9 +226,13 @@ export default function ManageUsers() {
                     (number) => (
                       <PaginationItem key={number}>
                         <PaginationLink
-                          onClick={() => paginate(number)}
+                          onClick={() => !loading && paginate(number)}
                           isActive={currentPage === number}
-                          className="cursor-pointer"
+                          className={
+                            loading
+                              ? "pointer-events-none opacity-50"
+                              : "cursor-pointer"
+                          }
                         >
                           {number}
                         </PaginationLink>
@@ -224,9 +242,9 @@ export default function ManageUsers() {
 
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => paginate(currentPage + 1)}
+                      onClick={() => !loading && paginate(currentPage + 1)}
                       className={
-                        currentPage === totalPages
+                        currentPage === totalPages || loading
                           ? "pointer-events-none opacity-50"
                           : "cursor-pointer"
                       }

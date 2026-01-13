@@ -5,6 +5,7 @@ const {
   updateTask,
   deleteTask,
   getTaskLogs,
+  getTaskById,
 } = require("../controllers/taskController");
 const {
   getTaskComments,
@@ -24,6 +25,7 @@ const {
 const { addCommentSchema } = require("../validations/commentSchema");
 const validate = require("../middleware/validate");
 
+router.get("/:id", getTaskById);
 router.post("/", validate(createTaskSchema), createTask);
 router.put(
   "/:id",
@@ -43,6 +45,10 @@ router.get("/:id/activity", validate(taskParamsSchema), getTaskLogs);
 router.post("/:id/files", validate(taskParamsSchema), uploadFile);
 router.get("/:id/files", validate(taskParamsSchema), getTaskFiles);
 router.delete("/:id/files/:fileId", validate(taskParamsSchema), deleteFile);
-router.get("/:id/files/:fileId/download", validate(taskParamsSchema), downloadFile);
+router.get(
+  "/:id/files/:fileId/download",
+  validate(taskParamsSchema),
+  downloadFile
+);
 
 module.exports = router;

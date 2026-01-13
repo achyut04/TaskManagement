@@ -32,6 +32,7 @@ interface ProjectState {
   projects: Project[];
   currentProject: Project | null;
   taskComments: Comment[];
+  currentTask: Task | null;
   totalComments: number;
   hasMoreComments: boolean;
   taskLogs: ActivityLog[];
@@ -50,6 +51,7 @@ interface ProjectState {
   resetComments: () => void;
   addTaskComment: (taskId: string, content: string) => Promise<void>;
   fetchTaskLogs: (taskId: string) => Promise<void>;
+  fetchTaskById: (taskId: string) => Promise<void>;
 }
 
 export interface Task {
@@ -62,7 +64,7 @@ export interface Task {
   project_id: string;
   assigned_to_id?: string;
   assignee?: User;
-  created_at: Timestamp;
+  createdAt: Timestamp;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -73,6 +75,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   hasMoreComments: true,
   taskLogs: [],
   loading: false,
+  currentTask: null,
 
   fetchProjects: async (search?: string) => {
     set({ loading: true });
@@ -104,7 +107,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   updateProject: async (id, updates) => {
     try {
+      console.log("hello");
       const { data } = await API.put(`/project/${id}`, updates);
+      console.log(data);
       set((state) => ({
         currentProject: { ...state.currentProject!, ...data },
         projects: state.projects.map((p) =>
@@ -123,7 +128,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         projects: state.projects.filter((p) => p.id !== id),
         currentProject: null,
       }));
-      toast.success("Project deleted");
+      // toast.success("Project deleted");
     } catch (error: any) {
       const errorMessage =
         error.message ||
@@ -197,7 +202,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   updateTask: async (taskId, updates) => {
     try {
       const { data } = await API.put(`/tasks/${taskId}`, updates);
-
+      console.log(data);
       set((state) => {
         if (!state.currentProject) return {};
         return {
@@ -207,6 +212,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               t.id === taskId ? data : t
             ),
           },
+          currentTask: data,
         };
       });
 
@@ -282,6 +288,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({ taskLogs: data });
     } catch (error) {
       console.error("Failed to fetch activity logs", error);
+    }
+  },
+
+  fetchTaskById: async (taskId: string) => {
+    set({ loading: true, currentTask: null });
+    try {
+      const { data } = await API.get(`/tasks/${taskId}`);
+      set({ currentTask: data, loading: false });
+    } catch (error) {
+      console.error("Failed to fetch task", error);
+      set({ loading: false, currentTask: null });
     }
   },
 }));

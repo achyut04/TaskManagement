@@ -38,7 +38,7 @@ const FileAttachment = sequelize.define(
       allowNull: false,
     },
     file_size: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.INTEGER, 
       allowNull: false,
     },
     mime_type: {

@@ -43,7 +43,7 @@ export function Navbar() {
 
   return (
     <div className="border-b bg-white">
-      <div className="flex h-16 items-center px-6 md:px-8 max-w-7xl mx-auto justify-between">
+      <div className="flex h-16 items-center max-w-7xl mx-auto justify-between">
         <div className="flex items-center gap-8 md:gap-10">
           <Link
             href="/dashboard"

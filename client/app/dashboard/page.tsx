@@ -64,16 +64,18 @@ export default function Dashboard() {
           </div>
           {user.role === "Admin" && <AddProjectModal />}
         </div>
-
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search projects..."
-            className="pl-10 bg-white border-gray-200 focus:ring-2 focus:ring-blue-100 transition-all"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        {(projects.length !== 0 ||
+          (projects.length === 0 && searchQuery !== "")) && (
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search projects..."
+              className="pl-10 bg-white border-gray-200 focus:ring-2 focus:ring-blue-100 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex h-64 w-full items-center justify-center">
@@ -118,16 +120,10 @@ function ProjectCard({
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="flex-grow">
-          <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed">
-            {project.description || "No description provided."}
-          </p>
-        </CardContent>
-
         <CardFooter className="pt-4 border-t bg-gray-50/50 flex justify-between items-center text-xs text-gray-500">
           <div className="flex items-center gap-1.5">
             <User className="h-3.5 w-3.5" />
-            <span className={isOwner ? "font-medium text-blue-600" : ""}>
+            <span className={isOwner ? "font-medium text-black-600" : ""}>
               {isOwner ? "You" : project.creator?.username}
             </span>
           </div>

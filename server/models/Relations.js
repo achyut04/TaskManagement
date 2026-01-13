@@ -48,7 +48,7 @@ const syncDB = async () => {
     console.log("Database Synced");
   } catch (error) {
     console.error("Error syncing database: ", error);
-  }
+  } 
 };
 
 module.exports = { User, Project, Task, syncDB };

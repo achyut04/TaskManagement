@@ -41,7 +41,13 @@ export default function Login() {
       toast.success("Logged in successfully!");
       router.push("/dashboard");
     } catch (err: any) {
-      const errorMessage = err.message || err.response?.data?.error?.message || "Registration failed";
+      console.log("aksbnalk");
+      console.log(err);
+      const errorMessage =
+        err.details ||
+        err.message ||
+        err.response?.data?.error?.message ||
+        "Registration failed";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);

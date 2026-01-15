@@ -131,6 +131,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // toast.success("Project deleted");
     } catch (error: any) {
       const errorMessage =
+        error.details ||
         error.message ||
         error.response?.data?.error?.message ||
         "Delete failed";
@@ -146,6 +147,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       get().fetchProjectById(projectId);
     } catch (error: any) {
       const errorMessage =
+        error.details ||
         error.message ||
         error.response?.data?.error?.message ||
         "Failed to add member";
@@ -170,6 +172,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       toast.success("Member removed");
     } catch (error: any) {
       const errorMessage =
+        error.details ||
         error.message ||
         error.response?.data?.error?.message ||
         "Failed to remove member";
@@ -192,6 +195,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       toast.success("Task created!");
     } catch (error: any) {
       const errorMessage =
+        error.details ||
         error.message ||
         error.response?.data?.error?.message ||
         "Failed to create task";

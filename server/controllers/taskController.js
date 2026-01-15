@@ -77,11 +77,6 @@ const createTask = async (req, res) => {
       ],
     });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(project_id).emit("task_created", fullTask);
-    }
-
     return sendSuccess(res, fullTask, "Task created successfully", null, 201);
   } catch (error) {
     return sendInternalError(res, error.message);
@@ -180,11 +175,6 @@ const updateTask = async (req, res) => {
     await task.save();
     await task.reload();
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(task.project_id).emit("task_updated", task);
-    }
-
     return sendSuccess(res, task, "Task updated successfully");
   } catch (error) {
     return sendInternalError(res, error.message);
@@ -203,14 +193,7 @@ const deleteTask = async (req, res) => {
     if (req.user.role !== "Admin" && task.createdById !== req.user.id) {
       return sendForbidden(res, "Not authorized to delete this task");
     }
-
-    const projectId = task.projectId;
     await task.destroy();
-
-    const io = req.app.get("io");
-    if (io) {
-      io.to(projectId).emit("task_deleted", id);
-    }
 
     return sendSuccess(res, null, "Task deleted", null, 204);
   } catch (error) {

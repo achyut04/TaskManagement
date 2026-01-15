@@ -76,6 +76,7 @@ export default function ManageUsers() {
       }
     } catch (error: any) {
       const errorMessage =
+        error.details ||
         error.message ||
         error.response?.data?.error?.message ||
         "Failed to fetch users";

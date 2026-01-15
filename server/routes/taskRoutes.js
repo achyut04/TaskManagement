@@ -25,7 +25,7 @@ const {
 const { addCommentSchema } = require("../validations/commentSchema");
 const validate = require("../middleware/validate");
 
-router.get("/:id", getTaskById);
+router.get("/:id", validate(taskParamsSchema), getTaskById);
 router.post("/", validate(createTaskSchema), createTask);
 router.put(
   "/:id",
